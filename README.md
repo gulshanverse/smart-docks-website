@@ -20,10 +20,6 @@ Upload any document. SmartDocs understands it, recommends the right actions, and
   </a>
 </p>
 
-<p>
-  <img src="./assets/dashboard.png" width="100%" alt="SmartDocs Dashboard"/>
-</p>
-
 ### **One Upload. Infinite Possibilities.**
 
 *Stop looking for the right tool. Let SmartDocs understand your document and do the work for you.*
