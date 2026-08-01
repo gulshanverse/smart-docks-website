@@ -1,296 +1,257 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Gulshan Kumar — Innovative IT Mind | Future-Ready Developer</title>
-    <meta name="description" content="Premium portfolio of Gulshan Kumar, an innovative B.Tech IT student and future-ready developer. Explore skills, projects, and contact details." />
-    <meta name="theme-color" content="#0b1020" />
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#0b1020" />
+  <meta name="description" content="Gulshan Kumar | Innovative IT Mind | Future-Ready Developer - Premium 3D portfolio" />
+  <title>Gulshan Kumar — Innovative IT Mind</title>
+  
+  <!-- Premium Typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
 
-    <!-- Typography -->
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
-
-    <link rel="stylesheet" href="./styles.css" />
-    <script defer src="./script.js"></script>
-  </head>
-  <body>
-    <!-- Page transition overlay -->
-    <div class="page-transition" aria-hidden="true"></div>
-
-    <!-- Header with clock and navigation -->
-    <header class="site-header glass">
-      <div class="brand">
-        <a href="#hero" class="brand-mark" aria-label="Gulshan Kumar Home">
-          <span class="logo-glow">GK</span>
-        </a>
-        <div class="brand-name">
-          <strong>Gulshan Kumar</strong>
-          <span>Innovative IT Mind</span>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body class="is-loading">
+  <header class="site-header glass">
+    <a class="brand" href="#hero" aria-label="Go to top">
+      <span class="brand-mark">GK</span>
+      <span class="brand-name">Gulshan Kumar</span>
+    </a>
+    <nav class="nav">
+      <a href="#about">About</a>
+      <a href="#skills">Skills</a>
+      <a href="#projects">Projects</a>
+      <a href="#contact">Contact</a>
+    </nav>
+    <div class="clock3d" aria-label="Live clock">
+      <div class="clock-scene">
+        <div class="clock-cube">
+          <div class="clock-face face front">
+            <div class="hand hour" id="hourHand"></div>
+            <div class="hand minute" id="minuteHand"></div>
+            <div class="hand second" id="secondHand"></div>
+            <div class="center-dot"></div>
+          </div>
+          <div class="face back"></div>
+          <div class="face right"></div>
+          <div class="face left"></div>
+          <div class="face top"></div>
+          <div class="face bottom"></div>
         </div>
       </div>
+      <div class="clock-digital" id="digitalClock" aria-live="polite">00:00:00</div>
+    </div>
+  </header>
 
-      <nav class="site-nav">
-        <a href="#about" class="nav-link">About</a>
-        <a href="#skills" class="nav-link">Skills</a>
-        <a href="#projects" class="nav-link">Projects</a>
-        <a href="#contact" class="nav-link btn-cta">Hire Me</a>
-      </nav>
-
-      <div class="clock-wrap" aria-label="Real-time clock">
-        <canvas id="clock3d" width="160" height="160" aria-hidden="true"></canvas>
-        <div class="clock-time sr-only" aria-live="polite"></div>
-      </div>
-    </header>
-
-    <!-- HERO -->
-    <section id="hero" class="hero section">
-      <canvas id="bg-canvas" aria-hidden="true"></canvas>
-      <div class="hero-inner parallax" data-speed="0.3">
-        <h1 class="hero-title neon">
-          Gulshan Kumar
-        </h1>
-        <h2 class="hero-tagline">
-          <span id="typed" class="typed"></span>
-          <span class="caret">|</span>
-        </h2>
-        <div class="hero-actions">
-          <a href="#contact" class="btn btn-neon btn-3d">Hire Me</a>
-          <a href="#projects" class="btn btn-ghost">View Projects</a>
+  <main>
+    <!-- Hero Section -->
+    <section id="hero" class="hero">
+      <canvas id="bg3d" aria-hidden="true"></canvas>
+      <div class="hero-overlay"></div>
+      <div class="hero-content" data-speed="0.25">
+        <h1 class="title neon">Gulshan Kumar</h1>
+        <p class="subtitle">
+          <span id="typing"></span><span class="caret" aria-hidden="true"></span>
+        </p>
+        <div class="cta">
+          <a class="btn-3d glow" href="#contact">Hire Me</a>
         </div>
-      </div>
-      <div class="scroll-indicator" aria-hidden="true">
-        <span></span>
+        <div class="scroll-indicator">
+          <span class="mouse"></span>
+          <span>Scroll</span>
+        </div>
       </div>
     </section>
 
-    <!-- ABOUT -->
-    <section id="about" class="about section">
+    <!-- About Section -->
+    <section id="about" class="section reveal">
       <div class="container">
-        <div class="card glass elevate reveal">
-          <div class="about-media">
-            <!-- Circular avatar using inline SVG for fast load -->
-            <div class="avatar-circle">
-              <svg viewBox="0 0 200 200" role="img" aria-label="Portrait of Gulshan Kumar">
-                <defs>
-                  <radialGradient id="gradAvatar" cx="50%" cy="45%" r="65%">
-                    <stop offset="0%" stop-color="#00e5ff" />
-                    <stop offset="60%" stop-color="#6a00f4" />
-                    <stop offset="100%" stop-color="#0b1020" />
-                  </radialGradient>
-                </defs>
-                <circle cx="100" cy="100" r="96" fill="url(#gradAvatar)" />
-                <text x="50%" y="54%" text-anchor="middle" font-family="Montserrat, Poppins, sans-serif" font-weight="800" font-size="72" fill="#e6f1ff">GK</text>
-                <circle cx="100" cy="100" r="96" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="2" />
-              </svg>
-            </div>
-          </div>
-          <div class="about-content">
-            <h3>About Me</h3>
+        <div class="about-card glass">
+          <div class="avatar" aria-label="Profile image placeholder" data-speed="-0.15">GK</div>
+          <div class="about-text">
+            <h2 class="section-title">About Me</h2>
             <p>
-              I am Gulshan Kumar, an innovative B.Tech IT student with a passion for crafting beautiful, high-performance digital experiences. I love solving complex problems with clean code and delightful interactions.
+              I am Gulshan Kumar, an innovative B.Tech IT student passionate about crafting immersive, performant, and human-centered digital experiences. I love turning ideas into elegant solutions using modern web technologies, clean architecture, and thoughtful design. My focus is on building scalable interfaces, exploring creative 3D visuals, and solving complex problems with clarity.
             </p>
             <p>
-              My focus areas include modern web development, data structures and algorithms, and building future-ready solutions across platforms.
+              When I am not building, I explore emerging tech, participate in coding challenges, and collaborate on open-source projects.
             </p>
-            <div class="about-highlights">
-              <span class="chip">Front-end Engineering</span>
-              <span class="chip">Problem Solving</span>
-              <span class="chip">Creative UI/UX</span>
-              <span class="chip">Python & C++</span>
+            <div class="about-actions">
+              <a class="btn-3d" href="#projects">View Projects</a>
+              <a class="btn-ghost" href="#contact">Get In Touch</a>
             </div>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- SKILLS -->
-    <section id="skills" class="skills section">
+    <!-- Skills Section -->
+    <section id="skills" class="section reveal">
       <div class="container">
-        <h3 class="section-title">Skills</h3>
+        <h2 class="section-title">Skills</h2>
         <div class="skills-grid">
-          <!-- Skill Card -->
-          <div class="skill-card tilt reveal">
-            <div class="skill-head">
-              <span class="icon html" aria-hidden="true">&lt;/&gt;</span>
-              <h4>HTML</h4>
+          <!-- HTML -->
+          <div class="skill-card" data-tilt>
+            <div class="skill-icon" aria-hidden="true">
+              <svg viewBox="0 0 128 128" role="img" aria-label="HTML5 icon"><path fill="#e44d26" d="M19 3l9 100 36 10 36-10 9-100z"></path><path fill="#f16529" d="M64 27v76.9l29.1-8.1 7.7-68.8z"></path><path fill="#ebebeb" d="M64 66.6H49.9l-1-11.7H64V43.4H37l.3 3.7 2.8 31.7H64z"></path><path fill="#fff" d="M64 88.6l-.1.1-12.1-3.3-.8-8.6H39l1.5 16.7L64 98.9z"></path></svg>
             </div>
-            <div class="progress" data-value="95">
-              <div class="bar"></div>
-            </div>
+            <h3>HTML</h3>
+            <div class="progress" data-level="95"><span class="progress-bar"></span></div>
           </div>
-
-          <div class="skill-card tilt reveal">
-            <div class="skill-head">
-              <span class="icon css" aria-hidden="true">{ }</span>
-              <h4>CSS</h4>
+          <!-- CSS -->
+          <div class="skill-card" data-tilt>
+            <div class="skill-icon" aria-hidden="true">
+              <svg viewBox="0 0 128 128" role="img" aria-label="CSS3 icon"><path fill="#1572b6" d="M19 3l9 100 36 10 36-10 9-100z"></path><path fill="#33a9dc" d="M64 27v76.9l29.1-8.1 7.7-68.8z"></path><path fill="#fff" d="M64 66.6H79l-1.3 14.9L64 85.3v13.6l24-6.7 3.3-36.7H64z"></path></svg>
             </div>
-            <div class="progress" data-value="92">
-              <div class="bar"></div>
-            </div>
+            <h3>CSS</h3>
+            <div class="progress" data-level="92"><span class="progress-bar"></span></div>
           </div>
-
-          <div class="skill-card tilt reveal">
-            <div class="skill-head">
-              <span class="icon js" aria-hidden="true">JS</span>
-              <h4>JavaScript</h4>
+          <!-- JavaScript -->
+          <div class="skill-card" data-tilt>
+            <div class="skill-icon" aria-hidden="true">
+              <svg viewBox="0 0 128 128" role="img" aria-label="JavaScript icon"><path fill="#f0db4f" d="M2 2h124v124H2z"></path><path d="M89 102c2.1 3.4 4.9 5.9 9.8 5.9 4.1 0 6.7-2 6.7-4.8 0-3.3-2.6-4.5-7.1-6.4l-2.4-1c-6.9-3-11.5-6.7-11.5-14.6 0-7.3 5.6-12.8 14.4-12.8 6.2 0 10.7 2.2 13.9 7.9l-7.6 4.9c-1.7-3-3.6-4.2-6.3-4.2-2.9 0-4.8 1.9-4.8 4.2 0 3 1.9 4.2 6.3 6.1l2.4 1c8.1 3.5 12.7 7 12.7 15 0 8.6-6.7 13.3-15.8 13.3-8.8 0-14.5-4.2-17.3-9.7zm-37.1.8c1.6 2.9 3 5.3 6.3 5.3 3.2 0 5.2-1.3 5.2-6.4V60h9.7v41.8c0 10.1-5.9 14.7-14.6 14.7-7.8 0-12.3-4.1-14.6-9z" fill="#323330"></path></svg>
             </div>
-            <div class="progress" data-value="88">
-              <div class="bar"></div>
-            </div>
+            <h3>JavaScript</h3>
+            <div class="progress" data-level="88"><span class="progress-bar"></span></div>
           </div>
-
-          <div class="skill-card tilt reveal">
-            <div class="skill-head">
-              <span class="icon py" aria-hidden="true">Py</span>
-              <h4>Python</h4>
+          <!-- Python -->
+          <div class="skill-card" data-tilt>
+            <div class="skill-icon" aria-hidden="true">
+              <svg viewBox="0 0 128 128" role="img" aria-label="Python icon"><linearGradient id="pyA" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stop-color="#3879ab"/><stop offset="100%" stop-color="#2b5b84"/></linearGradient><linearGradient id="pyB" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stop-color="#ffd43b"/><stop offset="100%" stop-color="#f7c425"/></linearGradient><path fill="url(#pyA)" d="M63 8c-28 0-26 12-26 12v14h26v4H27S8 38 8 64s17 26 17 26h12V76s-1-17 26-17h14s14-1 14-14V22S87 8 63 8z"/><path fill="url(#pyB)" d="M65 120c28 0 26-12 26-12v-14H65v-4h36s19 0 19-26-17-26-17-26H91v14s1 17-26 17H51s-14 1-14 14v17s-4 14 28 14z"/></svg>
             </div>
-            <div class="progress" data-value="85">
-              <div class="bar"></div>
-            </div>
+            <h3>Python</h3>
+            <div class="progress" data-level="85"><span class="progress-bar"></span></div>
           </div>
-
-          <div class="skill-card tilt reveal">
-            <div class="skill-head">
-              <span class="icon cpp" aria-hidden="true">C++</span>
-              <h4>C++</h4>
+          <!-- C++ -->
+          <div class="skill-card" data-tilt>
+            <div class="skill-icon" aria-hidden="true">
+              <svg viewBox="0 0 128 128" role="img" aria-label="C++ icon"><path fill="#00599c" d="M63.9 3.2L8.4 35.5v57l55.5 32.3L119.5 92.5v-57z"></path><path fill="#fff" d="M63.9 28.6c19.5 0 35.3 15.8 35.3 35.3S83.4 99.2 63.9 99.2 28.6 83.4 28.6 63.9 44.4 28.6 63.9 28.6m0-9.3c-24.6 0-44.6 20-44.6 44.6s20 44.6 44.6 44.6 44.6-20 44.6-44.6-20-44.6-44.6-44.6z"></path><g fill="#fff"><rect x="72" y="58" width="20" height="6" rx="3"/><rect x="72" y="68" width="20" height="6" rx="3"/></g></svg>
             </div>
-            <div class="progress" data-value="82">
-              <div class="bar"></div>
-            </div>
+            <h3>C++</h3>
+            <div class="progress" data-level="80"><span class="progress-bar"></span></div>
           </div>
-
-          <div class="skill-card tilt reveal">
-            <div class="skill-head">
-              <span class="icon brain" aria-hidden="true">∑</span>
-              <h4>Problem Solving</h4>
+          <!-- Problem Solving -->
+          <div class="skill-card" data-tilt>
+            <div class="skill-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" role="img" aria-label="Problem solving icon" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 21a9 9 0 1 0-9-9 9 9 0 0 0 9 9z" opacity=".3"/><path d="M8 14a4 4 0 1 1 8 0v1a2 2 0 0 0 2 2v0a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2v0a2 2 0 0 0 2-2z"/></svg>
             </div>
-            <div class="progress" data-value="90">
-              <div class="bar"></div>
-            </div>
+            <h3>Problem Solving</h3>
+            <div class="progress" data-level="90"><span class="progress-bar"></span></div>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- PROJECTS -->
-    <section id="projects" class="projects section">
+    <!-- Projects Section -->
+    <section id="projects" class="section reveal">
       <div class="container">
-        <h3 class="section-title">Projects</h3>
+        <h2 class="section-title">Projects</h2>
         <div class="masonry">
-          <!-- Project Item -->
-          <article class="project-card reveal" tabindex="0" data-title="Interactive Portfolio" data-desc="A responsive, animated personal site with 3D background and smooth transitions." data-tech="HTML, CSS, JS" data-link="#">
-            <div class="thumb gradient-1"></div>
-            <div class="project-info">
-              <h4>Interactive Portfolio</h4>
-              <p>3D background, parallax, and glass UI</p>
+          <article class="project-card" data-title="Neon Portfolio" data-desc="A premium 3D portfolio with neon glow, glassmorphism, and animated background." data-link="#">
+            <div class="project-thumb gradient-1"></div>
+            <div class="project-overlay">
+              <h3>Neon Portfolio</h3>
+              <p>Interactive 3D visuals</p>
             </div>
           </article>
-
-          <article class="project-card reveal" tabindex="0" data-title="Algo Visualizer" data-desc="Real-time visualization of classic algorithms with animations." data-tech="JavaScript, Canvas" data-link="#">
-            <div class="thumb gradient-2"></div>
-            <div class="project-info">
-              <h4>Algo Visualizer</h4>
-              <p>Sorting, pathfinding, dynamic simulations</p>
+          <article class="project-card" data-title="Smart Tasker" data-desc="Productivity app with offline-first design and intelligent scheduling." data-link="#">
+            <div class="project-thumb gradient-2 tall"></div>
+            <div class="project-overlay">
+              <h3>Smart Tasker</h3>
+              <p>Progressive Web App</p>
             </div>
           </article>
-
-          <article class="project-card reveal" tabindex="0" data-title="Dev Dashboard" data-desc="A developer productivity dashboard with widgets and API integrations." data-tech="HTML, CSS, JS" data-link="#">
-            <div class="thumb gradient-3"></div>
-            <div class="project-info">
-              <h4>Dev Dashboard</h4>
-              <p>Metrics, notes, and quick actions</p>
+          <article class="project-card" data-title="Algo Visualizer" data-desc="Interactive algorithm visualizations with high-FPS canvas rendering." data-link="#">
+            <div class="project-thumb gradient-3"></div>
+            <div class="project-overlay">
+              <h3>Algo Visualizer</h3>
+              <p>Canvas + Animations</p>
             </div>
           </article>
-
-          <article class="project-card reveal" tabindex="0" data-title="Smart Notes" data-desc="Fast, offline-first notes app with powerful search." data-tech="PWA, JS" data-link="#">
-            <div class="thumb gradient-4"></div>
-            <div class="project-info">
-              <h4>Smart Notes</h4>
-              <p>Offline-first, blazing fast</p>
+          <article class="project-card" data-title="AI Notes" data-desc="Note-taking app enhanced with search and smart tags." data-link="#">
+            <div class="project-thumb gradient-4 wide"></div>
+            <div class="project-overlay">
+              <h3>AI Notes</h3>
+              <p>Semantic Search</p>
             </div>
           </article>
-
-          <article class="project-card reveal" tabindex="0" data-title="Portfolio Components" data-desc="Reusable animated UI components for portfolios." data-tech="CSS Art, JS" data-link="#">
-            <div class="thumb gradient-5"></div>
-            <div class="project-info">
-              <h4>Portfolio Components</h4>
-              <p>Buttons, loaders, cards</p>
+          <article class="project-card" data-title="Crypto Tracker" data-desc="Live market dashboard with real-time charts." data-link="#">
+            <div class="project-thumb gradient-5"></div>
+            <div class="project-overlay">
+              <h3>Crypto Tracker</h3>
+              <p>Realtime Charts</p>
             </div>
           </article>
-        </div>
-      </div>
-
-      <!-- Modal for project details -->
-      <div class="modal" id="projectModal" aria-hidden="true" role="dialog" aria-modal="false">
-        <div class="modal-backdrop" data-close></div>
-        <div class="modal-dialog glass elevate">
-          <button class="modal-close" aria-label="Close" data-close>&times;</button>
-          <div class="modal-body">
-            <h4 id="modalTitle"></h4>
-            <p id="modalDesc"></p>
-            <p class="modal-meta">Tech: <span id="modalTech"></span></p>
-            <a id="modalLink" class="btn btn-neon" href="#" target="_blank" rel="noopener">Open Project</a>
-          </div>
+          <article class="project-card" data-title="Vision Cam" data-desc="Web-based image effects with WebGL shaders." data-link="#">
+            <div class="project-thumb gradient-6 tall"></div>
+            <div class="project-overlay">
+              <h3>Vision Cam</h3>
+              <p>WebGL Effects</p>
+            </div>
+          </article>
         </div>
       </div>
     </section>
 
-    <!-- CONTACT -->
-    <section id="contact" class="contact section">
+    <!-- Contact Section -->
+    <section id="contact" class="section reveal">
       <div class="container">
-        <h3 class="section-title">Contact</h3>
+        <h2 class="section-title">Contact</h2>
         <div class="contact-grid">
-          <form id="contactForm" class="contact-form glass reveal" autocomplete="on">
+          <form id="contactForm" class="contact-form glass" autocomplete="on">
             <div class="field">
-              <input type="text" id="name" name="name" required />
+              <input id="name" name="name" type="text" placeholder=" " required />
               <label for="name">Your Name</label>
             </div>
             <div class="field">
-              <input type="email" id="email" name="email" required />
+              <input id="email" name="email" type="email" placeholder=" " required />
               <label for="email">Email</label>
             </div>
             <div class="field">
-              <textarea id="message" name="message" rows="5" required></textarea>
+              <textarea id="message" name="message" rows="4" placeholder=" " required></textarea>
               <label for="message">Message</label>
             </div>
-            <div class="actions">
-              <button type="submit" class="btn btn-neon btn-3d">Send</button>
-              <a id="whatsappBtn" class="btn btn-ghost" target="_blank" rel="noopener" href="https://wa.me/0000000000?text=Hello%20Gulshan!%20I%20loved%20your%20portfolio." aria-label="WhatsApp">
-                <span class="wa-icon" aria-hidden="true"></span>
-                WhatsApp
-              </a>
-            </div>
+            <button type="submit" class="btn-3d glow">Send Message</button>
           </form>
-
-          <div class="contact-aside reveal">
-            <p>
-              Let's build something extraordinary. I'm open to internships, freelance projects, and collaborations.
-            </p>
+          <div class="contact-side glass">
+            <a class="btn-3d whatsapp" href="https://wa.me/919999999999?text=Hi%20Gulshan%2C%20I%20found%20your%20portfolio%20awesome!" target="_blank" rel="noopener">Chat on WhatsApp</a>
             <div class="socials">
-              <a class="social" href="#" aria-label="GitHub" target="_blank" rel="noopener">
-                <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path fill="currentColor" d="M12 .5a12 12 0 0 0-3.79 23.4c.6.11.82-.26.82-.58v-2.02c-3.34.73-4.04-1.61-4.04-1.61-.55-1.39-1.34-1.76-1.34-1.76-1.09-.75.09-.74.09-.74 1.21.09 1.85 1.25 1.85 1.25 1.07 1.83 2.81 1.3 3.5.99.11-.78.42-1.3.76-1.6-2.66-.3-5.46-1.33-5.46-5.92 0-1.31.47-2.38 1.24-3.22-.13-.3-.54-1.52.12-3.17 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 0 1 6 0c2.28-1.55 3.29-1.23 3.29-1.23.67 1.65.26 2.87.13 3.17.77.84 1.23 1.91 1.23 3.22 0 4.6-2.81 5.61-5.49 5.91.43.37.81 1.09.81 2.2v3.26c0 .32.21.7.82.58A12 12 0 0 0 12 .5Z"/></svg>
+              <a href="https://github.com/" target="_blank" rel="noopener" aria-label="GitHub" class="social">
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true"><path d="M12 .5a12 12 0 0 0-3.8 23.4c.6.1.8-.2.8-.5v-2c-3.3.7-4-1.6-4-1.6-.5-1.3-1.2-1.6-1.2-1.6-1-.6.1-.6.1-.6 1.1.1 1.7 1.1 1.7 1.1 1 .1.7 1.8 2.6 2.3.6.2 1.2.1 1.8 0 .1-.7.4-1.2.7-1.5-2.7-.3-5.4-1.3-5.4-5.9 0-1.3.5-2.4 1.2-3.3-.1-.3-.5-1.6.1-3.3 0 0 1-.3 3.4 1.2 1-.3 2-.5 3.1-.5s2.1.2 3.1.5c2.4-1.5 3.4-1.2 3.4-1.2.6 1.7.2 3 .1 3.3.8.9 1.2 2 1.2 3.3 0 4.6-2.8 5.6-5.4 5.9.5.4.8 1.1.8 2.2v3.3c0 .3.2.6.8.5A12 12 0 0 0 12 .5Z"></path></svg>
               </a>
-              <a class="social" href="#" aria-label="LinkedIn" target="_blank" rel="noopener">
-                <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path fill="currentColor" d="M4.98 3.5C4.98 4.88 3.87 6 2.5 6S0 4.88 0 3.5 1.12 1 2.5 1s2.48 1.12 2.48 2.5zM.5 8h4V24h-4V8zm7.5 0h3.8v2.2h.1c.5-1 1.8-2.2 3.8-2.2 4.1 0 4.9 2.7 4.9 6.3V24h-4v-7.2c0-1.7 0-3.9-2.4-3.9s-2.8 1.8-2.8 3.8V24h-4V8z"/></svg>
+              <a href="https://linkedin.com/" target="_blank" rel="noopener" aria-label="LinkedIn" class="social">
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true"><path d="M20.45 20.45h-3.55v-5.6c0-1.33-.02-3.05-1.86-3.05-1.86 0-2.15 1.45-2.15 2.95v5.7H9.34V9h3.4v1.56h.05c.47-.9 1.62-1.86 3.33-1.86 3.56 0 4.21 2.34 4.21 5.37v6.38ZM5.34 7.43a2.06 2.06 0 1 1 0-4.12 2.06 2.06 0 0 1 0 4.12ZM7.12 20.45H3.56V9h3.56v11.45Z"></path></svg>
               </a>
-              <a class="social" href="#" aria-label="Twitter" target="_blank" rel="noopener">
-                <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path fill="currentColor" d="M22.46 6c-.77.35-1.6.59-2.46.69a4.27 4.27 0 0 0 1.88-2.36 8.53 8.53 0 0 1-2.71 1.04 4.26 4.26 0 0 0-7.26 3.88 12.1 12.1 0 0 1-8.79-4.46 4.28 4.28 0 0 0 1.32 5.69 4.18 4.18 0 0 1-1.93-.53v.05a4.27 4.27 0 0 0 3.42 4.18 4.3 4.3 0 0 1-1.12.15 4 4 0 0 1-.8-.08 4.27 4.27 0 0 0 3.98 2.96A8.55 8.55 0 0 1 2 19.54a12.07 12.07 0 0 0 6.56 1.92c7.88 0 12.2-6.53 12.2-12.2 0-.18 0-.35-.01-.53A8.66 8.66 0 0 0 24 5.09c-.86.38-1.78.64-2.74.76z"/></svg>
-              </a>
-              <a class="social" href="#" aria-label="Email" target="_blank" rel="noopener">
-                <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path fill="currentColor" d="M12 13.5 0 6V4l12 7.5L24 4v2zM0 8.25l12 7.5 12-7.5V20H0z"/></svg>
+              <a href="https://x.com/" target="_blank" rel="noopener" aria-label="Twitter X" class="social">
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true"><path d="M18.2 2.3h3.3l-7.2 8.2 8.4 11.2h-6.6l-5.2-6.8-6 6.8H1.6l7.7-8.8L1.2 2.3H8l4.7 6.2 5.5-6.2Z"></path></svg>
               </a>
             </div>
+            <p class="hint">Tip: Replace links and WhatsApp number with your real profiles.</p>
           </div>
         </div>
       </div>
     </section>
+  </main>
 
-    <footer class="site-footer">
-      <div class="container">
-        <p>© <span id="year"></span> Gulshan Kumar. All rights reserved.</p>
-      </div>
-    </footer>
-  </body>
+  <footer class="site-footer">
+    <div class="container">
+      <p>© <span id="year"></span> Gulshan Kumar. All rights reserved.</p>
+    </div>
+  </footer>
+
+  <!-- Project Modal -->
+  <div id="projectModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal-content glass">
+      <button class="modal-close" id="modalClose" aria-label="Close">×</button>
+      <h3 id="modalTitle">Title</h3>
+      <p id="modalDesc">Description</p>
+      <a id="modalLink" href="#" target="_blank" rel="noopener" class="btn-3d">Open Project</a>
+    </div>
+  </div>
+
+  <script defer src="./script.js"></script>
+</body>
 </html>

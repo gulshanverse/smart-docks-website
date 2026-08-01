@@ -1,269 +1,216 @@
 // Utilities
-const qs = (s, el=document) => el.querySelector(s);
-const qsa = (s, el=document) => [...el.querySelectorAll(s)];
+const qs = (sel, el=document)=>el.querySelector(sel);
+const qsa = (sel, el=document)=>[...el.querySelectorAll(sel)];
 
-// Page transition on navigation
-(function setupPageTransitions(){
-  const overlay = qs('.page-transition');
-  qsa('a[href^="#"]').forEach(a => {
-    a.addEventListener('click', e => {
-      const href = a.getAttribute('href');
-      if(!href || href === '#' || href.startsWith('#') === false) return;
-      const target = qs(href);
-      if(!target) return;
-      e.preventDefault();
-      overlay.classList.add('active');
-      setTimeout(() => {
-        target.scrollIntoView({behavior:'smooth', block:'start'});
-        setTimeout(()=> overlay.classList.remove('active'), 500);
-      }, 100);
-    });
-  });
-})();
+// Page loading transition
+window.addEventListener('load',()=>{
+  document.body.classList.remove('is-loading');
+});
 
-// Typed tagline effect
-(function setupTyped(){
-  const el = qs('#typed');
+// Typing effect
+(function typingEffect(){
+  const el = qs('#typing');
   if(!el) return;
-  const phrases = ["Innovative IT Mind", "Future-Ready Developer"];
-  const separator = " | ";
-  let idx = 0, char = 0, isDeleting = false, pause = 1200;
+  const text = 'Innovative IT Mind | Future-Ready Developer';
+  let i = 0; let dir = 1;
+  const speed = 55; const pause = 1200;
   function type(){
-    const current = phrases[idx];
-    const shown = isDeleting ? current.slice(0, char--) : current.slice(0, char++);
-    el.textContent = shown + (isDeleting ? '' : '');
-    const speed = isDeleting ? 45 : 70;
-    if(!isDeleting && char === current.length){
-      setTimeout(()=> isDeleting = true, pause);
-    } else if(isDeleting && char < 0){
-      isDeleting = false; idx = (idx + 1) % phrases.length; char = 0;
+    if(dir === 1){
+      el.textContent = text.slice(0, i++);
+      if(i<=text.length){ setTimeout(type, speed); }
+      else { dir = -1; setTimeout(type, pause); }
+    } else {
+      el.textContent = text.slice(0, i--);
+      if(i>=0){ setTimeout(type, 24); }
+      else { dir = 1; setTimeout(type, 420); }
     }
-    setTimeout(type, isDeleting ? speed : speed);
   }
   type();
 })();
 
-// Reveal on scroll
-(function setupReveal(){
-  const io = new IntersectionObserver((entries)=>{
-    for(const e of entries){ if(e.isIntersecting){ e.target.classList.add('visible'); io.unobserve(e.target); } }
-  }, {threshold: 0.15});
-  qsa('.reveal').forEach(el => io.observe(el));
+// Live 3D Clock (analog hands + digital)
+(function liveClock(){
+  const h = qs('#hourHand');
+  const m = qs('#minuteHand');
+  const s = qs('#secondHand');
+  const digital = qs('#digitalClock');
+  function pad(n){return String(n).padStart(2,'0');}
+  function update(){
+    const now = new Date();
+    const hh = now.getHours();
+    const mm = now.getMinutes();
+    const ss = now.getSeconds();
+    const hDeg = (hh % 12) * 30 + mm * 0.5;
+    const mDeg = mm * 6;
+    const sDeg = ss * 6;
+    if(h) h.style.transform = `translate(-50%, 0) rotate(${hDeg}deg)`;
+    if(m) m.style.transform = `translate(-50%, 0) rotate(${mDeg}deg)`;
+    if(s) s.style.transform = `translate(-50%, 0) rotate(${sDeg}deg)`;
+    if(digital) digital.textContent = `${pad(hh)}:${pad(mm)}:${pad(ss)}`;
+  }
+  update();
+  setInterval(update, 1000);
 })();
 
-// Progress bars animation
-(function setupProgress(){
-  const io = new IntersectionObserver((entries)=>{
-    for(const e of entries){
-      if(e.isIntersecting){
-        const wrap = e.target; const bar = qs('.bar', wrap);
-        const val = Number(wrap.getAttribute('data-value') || 0);
-        requestAnimationFrame(()=>{ bar.style.width = val + '%'; bar.style.inset = `0 ${100-val}% 0 0`; });
-        io.unobserve(wrap);
-      }
+// 3D Particle Background (lightweight starfield)
+(function starfield(){
+  const canvas = qs('#bg3d');
+  if(!canvas) return;
+  const ctx = canvas.getContext('2d');
+  let width = canvas.width = canvas.offsetWidth;
+  let height = canvas.height = canvas.offsetHeight;
+  let deviceRatio = window.devicePixelRatio || 1;
+  function resize(){
+    width = canvas.offsetWidth; height = canvas.offsetHeight;
+    canvas.width = Math.floor(width * deviceRatio);
+    canvas.height = Math.floor(height * deviceRatio);
+    ctx.setTransform(deviceRatio, 0, 0, deviceRatio, 0, 0);
+  }
+  window.addEventListener('resize', resize, {passive:true});
+  resize();
+
+  const depth = 800; // z-depth for perspective
+  const count = Math.round((width*height)/18000) + 90; // adaptive
+  const stars = new Array(count).fill(0).map(()=>({
+    x:(Math.random()*2-1)*width,
+    y:(Math.random()*2-1)*height,
+    z:Math.random()*depth
+  }));
+  let mouseX=0, mouseY=0, targetX=0, targetY=0;
+  window.addEventListener('mousemove', e=>{
+    const rect = canvas.getBoundingClientRect();
+    mouseX = (e.clientX - rect.left - rect.width/2)/rect.width;
+    mouseY = (e.clientY - rect.top - rect.height/2)/rect.height;
+  }, {passive:true});
+
+  function step(){
+    targetX += (mouseX - targetX)*0.06;
+    targetY += (mouseY - targetY)*0.06;
+    ctx.clearRect(0,0,width,height);
+    ctx.save();
+    ctx.translate(width/2, height/2);
+    for(const p of stars){
+      p.z -= 1.2; if(p.z<=1){ p.z = depth; }
+      const scale = 200 / p.z;
+      const x = p.x*scale + targetX*60;
+      const y = p.y*scale + targetY*60;
+      const alpha = Math.max(0, 1 - p.z/depth);
+      ctx.fillStyle = `rgba(140, 245, 255, ${alpha})`;
+      ctx.beginPath(); ctx.arc(x, y, Math.max(0.6, 1.6*alpha), 0, Math.PI*2); ctx.fill();
     }
-  }, {threshold: 0.4});
-  qsa('.progress').forEach(el => io.observe(el));
+    ctx.restore();
+    requestAnimationFrame(step);
+  }
+  step();
 })();
 
-// 3D tilt on cards
-(function setupTilt(){
-  const maxTilt = 10; const resetMs = 150;
-  qsa('.tilt').forEach(card => {
-    card.addEventListener('mousemove', (e) => {
-      const rect = card.getBoundingClientRect();
-      const px = (e.clientX - rect.left) / rect.width; // 0..1
-      const py = (e.clientY - rect.top) / rect.height; // 0..1
-      const rX = (py - 0.5) * -2 * maxTilt;
-      const rY = (px - 0.5) * 2 * maxTilt;
-      card.style.transform = `perspective(700px) rotateX(${rX}deg) rotateY(${rY}deg) translateY(-6px)`;
+// Intersection Reveal + progress animation
+(function revealObserver(){
+  const items = qsa('.reveal');
+  const progress = qsa('.progress');
+  const io = new IntersectionObserver((entries)=>{
+    entries.forEach(entry=>{
+      if(entry.isIntersecting){
+        entry.target.classList.add('in-view');
+        // Progress bars when visible
+        if(entry.target.classList.contains('section')){
+          progress.forEach(p=>{
+            if(p.closest('.section').id === entry.target.id){
+              const level = Number(p.getAttribute('data-level')) || 0;
+              const bar = qs('.progress-bar', p);
+              if(bar){
+                requestAnimationFrame(()=>{ bar.style.width = level + '%'; });
+              }
+            }
+          });
+        }
+        io.unobserve(entry.target);
+      }
     });
-    card.addEventListener('mouseleave', ()=>{
-      card.style.transition = `transform ${resetMs}ms ease`;
-      card.style.transform = '';
-      setTimeout(()=> card.style.transition = '', resetMs);
-    });
+  }, { threshold: 0.15 });
+  items.forEach(el=>io.observe(el));
+})();
+
+// Tilt effect on hover
+(function tilt(){
+  const tiltEls = qsa('[data-tilt]');
+  tiltEls.forEach(el=>{
+    let req = null;
+    let px=0, py=0;
+    function onMove(e){
+      const rect = el.getBoundingClientRect();
+      const x = (e.clientX - rect.left)/rect.width; // 0..1
+      const y = (e.clientY - rect.top)/rect.height; // 0..1
+      px = (x - 0.5) * 10; // degrees
+      py = (y - 0.5) * -10;
+      if(!req){ req = requestAnimationFrame(apply); }
+    }
+    function apply(){
+      el.style.transform = `perspective(700px) rotateX(${py}deg) rotateY(${px}deg)`;
+      req = null;
+    }
+    function reset(){ el.style.transform = 'perspective(700px) rotateX(0) rotateY(0)'; }
+    el.addEventListener('mousemove', onMove);
+    el.addEventListener('mouseleave', reset);
   });
 })();
 
-// Parallax on scroll for elements with data-speed
-(function setupParallax(){
-  const els = qsa('.parallax');
+// Parallax on elements with data-speed
+(function parallax(){
+  const items = qsa('[data-speed]');
   function onScroll(){
     const y = window.scrollY;
-    els.forEach(el => {
-      const speed = Number(el.getAttribute('data-speed') || 0.2);
-      el.style.transform = `translate3d(0, ${y * speed * 0.2}px, 0)`;
+    items.forEach(el=>{
+      const speed = Number(el.getAttribute('data-speed')) || 0.1;
+      const translate = y * speed;
+      el.style.transform = `translate3d(0, ${translate}px, 0)`;
     });
   }
   onScroll();
   window.addEventListener('scroll', onScroll, {passive:true});
 })();
 
-// Masonry modal interactions
-(function setupProjects(){
+// Projects modal
+(function projectsModal(){
   const modal = qs('#projectModal');
-  const title = qs('#modalTitle'); const desc = qs('#modalDesc'); const tech = qs('#modalTech'); const link = qs('#modalLink');
-  function open(card){
-    title.textContent = card.dataset.title || 'Project';
-    desc.textContent = card.dataset.desc || '';
-    tech.textContent = card.dataset.tech || '';
-    link.href = card.dataset.link || '#';
-    modal.classList.add('open');
-    modal.setAttribute('aria-hidden','false');
+  const closeBtn = qs('#modalClose');
+  const title = qs('#modalTitle');
+  const desc = qs('#modalDesc');
+  const link = qs('#modalLink');
+  function open(data){
+    title.textContent = data.title || 'Project';
+    desc.textContent = data.desc || '';
+    link.href = data.link || '#';
+    modal.classList.remove('hidden');
   }
-  function close(){ modal.classList.remove('open'); modal.setAttribute('aria-hidden','true'); }
-  qsa('.project-card').forEach(card => {
-    card.addEventListener('click', ()=> open(card));
-    card.addEventListener('keypress', (e)=>{ if(e.key==='Enter' || e.key===' '){ e.preventDefault(); open(card);} });
+  function close(){ modal.classList.add('hidden'); }
+  qsa('.project-card').forEach(card=>{
+    card.addEventListener('click', ()=>{
+      open({
+        title: card.getAttribute('data-title'),
+        desc: card.getAttribute('data-desc'),
+        link: card.getAttribute('data-link')
+      });
+    });
   });
-  modal?.addEventListener('click', (e)=>{ if(e.target.hasAttribute('data-close')) close(); });
-  document.addEventListener('keydown', (e)=>{ if(e.key==='Escape') close(); });
+  modal.addEventListener('click', (e)=>{ if(e.target === modal) close(); });
+  if(closeBtn) closeBtn.addEventListener('click', close);
+  window.addEventListener('keydown', (e)=>{ if(e.key==='Escape') close(); });
 })();
 
-// Contact form: WhatsApp integration and graceful email fallback
-(function setupContact(){
+// Contact form (demo)
+(function contactForm(){
   const form = qs('#contactForm');
-  const waBtn = qs('#whatsappBtn');
-  form?.addEventListener('submit', (e)=>{
+  if(!form) return;
+  form.addEventListener('submit', (e)=>{
     e.preventDefault();
     const name = qs('#name').value.trim();
     const email = qs('#email').value.trim();
-    const message = qs('#message').value.trim();
-    const subject = encodeURIComponent(`Inquiry from ${name}`);
-    const body = encodeURIComponent(`${message}\n\nFrom: ${name} <${email}>`);
-    window.location.href = `mailto:example@example.com?subject=${subject}&body=${body}`;
-  });
-  waBtn?.addEventListener('click', (e)=>{
-    const name = qs('#name').value.trim();
-    const message = qs('#message').value.trim();
-    const base = waBtn.getAttribute('href').split('?')[0];
-    const text = encodeURIComponent(`Hello Gulshan! I am ${name || 'someone'} — ${message || 'let\'s connect.'}`);
-    waBtn.setAttribute('href', `${base}?text=${text}`);
+    const msg = qs('#message').value.trim();
+    const whatsappUrl = `https://wa.me/919999999999?text=${encodeURIComponent(`Hi, I'm ${name}. ${msg} (Email: ${email})`)}`;
+    window.open(whatsappUrl, '_blank');
   });
 })();
 
 // Footer year
-(function setYear(){ const y = new Date().getFullYear(); const el = qs('#year'); if(el) el.textContent = y; })();
-
-// Canvas starfield background with depth and color gradient
-(function bgCanvas(){
-  const canvas = qs('#bg-canvas'); if(!canvas) return;
-  const ctx = canvas.getContext('2d');
-  let w, h, dpr;
-  const stars = []; const layers = 3; const perLayer = 90;
-  function resize(){
-    dpr = Math.min(window.devicePixelRatio || 1, 2);
-    w = canvas.clientWidth; h = canvas.clientHeight;
-    canvas.width = Math.floor(w * dpr);
-    canvas.height = Math.floor(h * dpr);
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  }
-  function init(){
-    stars.length = 0;
-    for(let l=0; l<layers; l++){
-      for(let i=0; i<perLayer; i++){
-        stars.push({
-          x: Math.random()*w,
-          y: Math.random()*h,
-          z: l+1,
-          r: Math.random()*1.8 + 0.4,
-          vx: (Math.random()*0.4+0.1) * (l+1),
-        });
-      }
-    }
-  }
-  let tiltX=0, tiltY=0; // tilt based on mouse
-  window.addEventListener('mousemove', (e)=>{
-    const cx = window.innerWidth/2; const cy = window.innerHeight/2;
-    tiltX = (e.clientX-cx)/cx; tiltY = (e.clientY-cy)/cy;
-  }, {passive:true});
-  function draw(){
-    ctx.clearRect(0,0,w,h);
-    // subtle gradient backdrop overlay for depth hue
-    const g = ctx.createLinearGradient(0,0,w,h);
-    g.addColorStop(0,'rgba(184,146,255,0.04)');
-    g.addColorStop(1,'rgba(110,243,214,0.04)');
-    ctx.fillStyle = g; ctx.fillRect(0,0,w,h);
-
-    for(const s of stars){
-      s.x -= s.vx * 0.3; if(s.x < -10) s.x = w + Math.random()*20;
-      const parX = s.x + tiltX * (s.z*6); const parY = s.y + tiltY * (s.z*6);
-      ctx.beginPath();
-      const hue = s.z === 1 ? 210 : s.z === 2 ? 275 : 160;
-      ctx.fillStyle = `hsla(${hue}, 80%, 78%, ${0.22 + s.z*0.10})`;
-      ctx.arc(parX, parY, s.r + s.z*0.2, 0, Math.PI*2);
-      ctx.fill();
-    }
-    requestAnimationFrame(draw);
-  }
-  const ro = new ResizeObserver(()=>{ resize(); init(); });
-  ro.observe(canvas);
-  resize(); init(); draw();
-})();
-
-// Canvas 3D-ish clock in header
-(function clock3D(){
-  const canvas = qs('#clock3d'); if(!canvas) return;
-  const ctx = canvas.getContext('2d');
-  const size = canvas.width; // assume square
-  const DPR = Math.min(window.devicePixelRatio || 1, 2);
-  function draw(){
-    const now = new Date();
-    const w = canvas.clientWidth || 160; const h = canvas.clientHeight || 160;
-    canvas.width = Math.floor(w * DPR); canvas.height = Math.floor(h * DPR);
-    ctx.setTransform(DPR,0,0,DPR,0,0);
-    const cx = w/2, cy = h/2; const R = Math.min(w,h)/2 - 10;
-    ctx.clearRect(0,0,w,h);
-
-    // base shadow
-    ctx.save();
-    ctx.translate(cx, cy+6);
-    ctx.scale(1, 0.2);
-    ctx.fillStyle = 'rgba(0,0,0,0.35)';
-    ctx.beginPath(); ctx.arc(0,0,R*0.9,0,Math.PI*2); ctx.fill();
-    ctx.restore();
-
-    // tilt effect using time
-    const tilt = (Math.sin(now.getSeconds()/60 * Math.PI*2) * 8);
-
-    // ring function
-    function ring(progress, inner, outer, color1, color2){
-      const start = -Math.PI/2; const end = start + progress * Math.PI*2;
-      const grd = ctx.createLinearGradient(-outer, -outer, outer, outer);
-      grd.addColorStop(0, color1);
-      grd.addColorStop(1, color2);
-      ctx.strokeStyle = grd; ctx.lineCap = 'round';
-      ctx.lineWidth = outer - inner;
-      ctx.beginPath(); ctx.arc(cx, cy-tilt, (inner+outer)/2, start, end); ctx.stroke();
-
-      // inner glow
-      ctx.strokeStyle = 'rgba(0,229,255,0.15)';
-      ctx.lineWidth = 1.2; ctx.beginPath(); ctx.arc(cx, cy-tilt, inner, 0, Math.PI*2); ctx.stroke();
-    }
-
-    const sec = now.getSeconds() + now.getMilliseconds()/1000;
-    const min = now.getMinutes() + sec/60;
-    const hr = (now.getHours()%12) + min/60;
-
-    ring(hr/12, R*0.55, R*0.78, '#a8c7fa', '#b892ff');
-    ring(min/60, R*0.35, R*0.52, '#b892ff', '#6ef3d6');
-    ring(sec/60, R*0.18, R*0.30, '#ffd1dc', '#a8c7fa');
-
-    // center cap
-    ctx.fillStyle = '#e6f1ff';
-    ctx.beginPath(); ctx.arc(cx, cy-tilt, 3, 0, Math.PI*2); ctx.fill();
-
-    requestAnimationFrame(draw);
-  }
-  draw();
-})();
-
-// Smooth in-view anchor focus for accessibility
-(function a11yFixes(){
-  window.addEventListener('hashchange', ()=>{
-    const id = location.hash.slice(1);
-    const el = id && qs('#'+CSS.escape(id));
-    if(el){ el.setAttribute('tabindex','-1'); el.focus({preventScroll:true}); setTimeout(()=> el.removeAttribute('tabindex'), 1000); }
-  });
-})();
+(function year(){ const y = qs('#year'); if(y) y.textContent = new Date().getFullYear(); })();
