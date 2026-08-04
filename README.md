@@ -20,7 +20,7 @@ Upload any document. SmartDocs understands it, recommends the right actions, and
   </a>
 </p>
 
-### **One Upload. Infinite Possibilities.**
+### **Once Upload. Infinite Possibilities.**
 
 *Stop looking for the right tool. Let SmartDocs understand your document and do the work for you.*
 
