@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { formatBytes, reductionPercent } from "../lib/file-utils";
 import { parseByteTarget, parseImageIntent } from "../domain/intents/parse-intent";
 import { selectCandidate } from "../features/compression/select-candidate";
+import { qualityDecision, scaledDimensions } from "../features/compression/compress-image";
 
 describe("byte units", () => {
   it("uses decimal KB and MB values", () => {
@@ -37,6 +38,19 @@ describe("deterministic image intent", () => {
     const result = parseImageIntent("make this suitable for my exam");
     expect(result.status).toBe("unsupported");
     expect(result.intent).toBeUndefined();
+  });
+});
+
+describe("smart resize policy", () => {
+  it("finds smaller dimensions while preserving aspect ratio", () => {
+    expect(scaledDimensions({ width: 1600, height: 1000 }, 0.56)).toEqual({ width: 896, height: 560 });
+  });
+
+  it("labels preserved, good, acceptable, and best-effort quality decisions", () => {
+    expect(qualityDecision(1, "image/png", true, true)).toBe("preserved");
+    expect(qualityDecision(0.82, "image/jpeg", false, true)).toBe("good");
+    expect(qualityDecision(0.6, "image/jpeg", false, true)).toBe("acceptable");
+    expect(qualityDecision(0.45, "image/jpeg", false, false)).toBe("best-effort");
   });
 });
 

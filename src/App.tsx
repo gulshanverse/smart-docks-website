@@ -52,6 +52,7 @@ function App() {
   const [notice, setNotice] = useState<Notice | null>(null);
   const [readingFile, setReadingFile] = useState(false);
   const [stage, setStage] = useState<CompressionStage | null>(null);
+  const [keepOriginalDimensions, setKeepOriginalDimensions] = useState(false);
 
   useEffect(() => {
     return () => {
@@ -60,11 +61,15 @@ function App() {
     };
   }, []);
 
+  function releaseResultUrls() {
+    resultUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
+    resultUrlsRef.current = [];
+  }
+
   function releaseUrls() {
     if (assetUrlRef.current) URL.revokeObjectURL(assetUrlRef.current);
-    resultUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
+    releaseResultUrls();
     assetUrlRef.current = null;
-    resultUrlsRef.current = [];
   }
 
   async function handleFile(file: File | undefined) {
@@ -73,6 +78,7 @@ function App() {
     setAsset(null);
     setOutcome(null);
     setIntent(null);
+    setKeepOriginalDimensions(false);
     setNotice(null);
     setReadingFile(true);
     try {
@@ -105,7 +111,7 @@ function App() {
     if (notice?.title === "We need a clearer goal.") setNotice(null);
   }
 
-  async function runWorkflow() {
+  async function runWorkflow(options: { allowResize?: boolean } = {}) {
     if (!asset) {
       setNotice({
         title: "Add an image first.",
@@ -126,11 +132,12 @@ function App() {
     }
 
     setNotice(null);
+    releaseResultUrls();
     setOutcome(null);
     setStage("preparing");
     try {
       const workflow = createImageCompressionWorkflow(asset, parsed.intent);
-      const result = await compressImage(workflow.input, workflow.intent, setStage);
+      const result = await compressImage(workflow.input, workflow.intent, setStage, { allowResize: options.allowResize ?? !keepOriginalDimensions });
       resultUrlsRef.current = [result.previewUrl, result.downloadUrl];
       setOutcome(result);
     } catch (error) {
@@ -144,6 +151,11 @@ function App() {
     }
   }
 
+  function reprocessWithResize(allowResize: boolean) {
+    setKeepOriginalDimensions(!allowResize);
+    void runWorkflow({ allowResize });
+  }
+
   function reset() {
     releaseUrls();
     setAsset(null);
@@ -152,6 +164,7 @@ function App() {
     setOutcome(null);
     setNotice(null);
     setStage(null);
+    setKeepOriginalDimensions(false);
     if (inputRef.current) inputRef.current.value = "";
   }
 
@@ -236,7 +249,7 @@ function App() {
             {notice ? <div className="notice" role="alert"><div className="notice-icon"><X size={17} /></div><div><strong>{notice.title}</strong><p>{notice.message}</p><span>{notice.recovery}</span></div></div> : null}
             {stage ? <div className="processing-strip" role="status" aria-live="polite"><span className="spinner" /><div><strong>{stageLabels[stage]}</strong><span>Working with the image in your browser. No progress percentage is invented.</span></div><ChevronDown size={18} /></div> : null}
 
-            {outcome && asset ? <ResultPanel asset={asset} outcome={outcome} onReset={reset} /> : null}
+            {outcome && asset ? <ResultPanel asset={asset} outcome={outcome} onReset={reset} onReprocess={reprocessWithResize} keepOriginalDimensions={keepOriginalDimensions} /> : null}
           </div>
         </section>
 
@@ -245,29 +258,32 @@ function App() {
             <div className="section-heading compact"><div><p className="eyebrow">How it works</p><h2 id="how-title">Simple on the outside.<br /><span>Measured underneath.</span></h2></div></div>
             <div className="steps-grid">
               <article><span>01</span><h3>Understand the request</h3><p>The first parser handles common target-size phrases and converts KB/MB into exact decimal bytes.</p></article>
-              <article><span>02</span><h3>Try real candidates</h3><p>The browser decodes the image, measures actual encodings, and searches for the highest quality that fits.</p></article>
+              <article><span>02</span><h3>Try the lightest path</h3><p>The browser tries compression first, then evaluates the smallest useful dimension reduction only when the target needs it.</p></article>
               <article><span>03</span><h3>Check before delivery</h3><p>The output is decoded again, its bytes and dimensions are verified, and only then is a download offered.</p></article>
             </div>
           </div>
         </section>
 
         <section id="roadmap" className="roadmap-section" aria-labelledby="roadmap-title">
-          <div className="container roadmap-grid"><div><p className="eyebrow">A measured roadmap</p><h2 id="roadmap-title">Build the foundation<br /><span>before the universe.</span></h2></div><div className="roadmap-list"><div className="roadmap-item current"><span className="roadmap-marker" /><div><strong>Image target-size workflow</strong><p>Implemented locally in this phase.</p></div><span className="roadmap-state">Now</span></div><div className="roadmap-item"><span className="roadmap-marker" /><div><strong>Document workflows</strong><p>PDF, OCR, conversion, and isolated processing.</p></div><span className="roadmap-state">Planned</span></div><div className="roadmap-item"><span className="roadmap-marker" /><div><strong>AI-assisted understanding</strong><p>Schema-constrained planning when it adds real value.</p></div><span className="roadmap-state">Later</span></div></div></div>
+          <div className="container roadmap-grid"><div><p className="eyebrow">A measured roadmap</p><h2 id="roadmap-title">Build the foundation<br /><span>before the universe.</span></h2></div><div className="roadmap-list"><div className="roadmap-item current"><span className="roadmap-marker" /><div><strong>Smart image optimizer</strong><p>Compression, resize recovery, and verified local results.</p></div><span className="roadmap-state">Now</span></div><div className="roadmap-item"><span className="roadmap-marker" /><div><strong>Document workflows</strong><p>PDF, OCR, conversion, and isolated processing.</p></div><span className="roadmap-state">Planned</span></div><div className="roadmap-item"><span className="roadmap-marker" /><div><strong>AI-assisted understanding</strong><p>Schema-constrained planning when it adds real value.</p></div><span className="roadmap-state">Later</span></div></div></div>
         </section>
       </main>
 
-      <footer className="site-footer"><div className="container footer-inner"><a className="brand footer-brand" href="#top" aria-label="Back to SmartDocs home"><span className="brand-mark" aria-hidden="true"><span /><span /><span /></span><span className="brand-name">SmartDocs</span></a><p>One file + one goal → one verified result.</p><span className="footer-phase">Phase 1 · Image workflow</span></div></footer>
+      <footer className="site-footer"><div className="container footer-inner"><a className="brand footer-brand" href="#top" aria-label="Back to SmartDocs home"><span className="brand-mark" aria-hidden="true"><span /><span /><span /></span><span className="brand-name">SmartDocs</span></a><p>One file + one goal → one verified result.</p><span className="footer-phase">Phase 1.5 · Smart optimizer</span></div></footer>
     </div>
   );
 }
 
-function ResultPanel({ asset, outcome, onReset }: { asset: FileAsset; outcome: CompressionOutcome; onReset: () => void }) {
+function ResultPanel({ asset, outcome, onReset, onReprocess, keepOriginalDimensions }: { asset: FileAsset; outcome: CompressionOutcome; onReset: () => void; onReprocess: (allowResize: boolean) => void; keepOriginalDimensions: boolean }) {
   const { validation } = outcome;
   return <section className="result-panel" aria-labelledby="result-title" data-testid="result-panel">
     <div className="result-heading"><div><p className="eyebrow"><span className="eyebrow-line" /> 03 · Verified result</p><h2 id="result-title">Your image is ready.</h2></div><span className={validation.targetAchieved ? "result-status achieved" : "result-status warning"}>{validation.targetAchieved ? <Check size={15} /> : <WandSparkles size={15} />}{validation.targetAchieved ? "Target achieved" : "Best quality available"}</span></div>
-    {outcome.warning ? <div className="result-warning"><strong>We protected the image quality.</strong><span>{outcome.warning}</span><small>To reach a smaller target, the next real option would be resizing first.</small></div> : null}
+    {outcome.warning ? <div className="result-warning"><strong>We protected the image quality.</strong><span>{outcome.warning}</span><small>{validation.resizeApplied ? "SmartDocs used the smallest tested dimension reduction that reached the target." : "Allow resizing if you want SmartDocs to evaluate a dimension reduction."}</small></div> : null}
+    {validation.resizeApplied ? <div className="smart-optimization"><strong>Smart optimization</strong><span><Check size={14} /> Reduced dimensions from {validation.originalDimensions.width} × {validation.originalDimensions.height} to {validation.finalDimensions.width} × {validation.finalDimensions.height}</span><span><Check size={14} /> Preserved acceptable visual quality</span></div> : null}
+    {outcome.resizeAvailable ? <div className="advanced-control"><label><input type="checkbox" checked={keepOriginalDimensions} onChange={(event) => { const keep = event.target.checked; onReprocess(!keep); }} /> Keep original dimensions</label>{keepOriginalDimensions ? <button type="button" onClick={() => onReprocess(true)}>Allow resizing</button> : null}</div> : null}
     <div className="comparison-grid"><div className="preview-frame"><div className="preview-label">Original <span>{formatBytes(asset.sizeBytes)}</span></div><img src={asset.previewUrl} alt={`Original preview of ${asset.name}`} /></div><div className="preview-frame optimized"><div className="preview-label">Optimized <span>{formatBytes(validation.outputBytes)}</span></div><img src={outcome.previewUrl} alt={`Optimized preview of ${outcome.filename}`} /></div></div>
-    <dl className="metrics-grid"><div><dt>Original</dt><dd>{formatBytes(validation.originalBytes)}</dd></div><div><dt>Optimized</dt><dd>{formatBytes(validation.outputBytes)}</dd></div><div><dt>Reduction</dt><dd>{validation.reductionPercent.toFixed(1)}%</dd></div><div><dt>Dimensions</dt><dd>{validation.width} × {validation.height}</dd></div><div><dt>Target</dt><dd>≤ {outcome.targetLabel}</dd></div></dl>
+    <dl className="metrics-grid"><div><dt>Original</dt><dd>{formatBytes(validation.originalBytes)}</dd></div><div><dt>Optimized</dt><dd>{formatBytes(validation.outputBytes)}</dd></div><div><dt>Reduction</dt><dd>{validation.reductionPercent.toFixed(1)}%</dd></div><div><dt>Final dimensions</dt><dd>{validation.finalDimensions.width} × {validation.finalDimensions.height}</dd></div><div><dt>Target</dt><dd>≤ {outcome.targetLabel}</dd></div></dl>
+    <p className="dimension-summary">Original dimensions: <strong>{validation.originalDimensions.width} × {validation.originalDimensions.height}</strong> <ArrowRight size={14} /> Final dimensions: <strong>{validation.finalDimensions.width} × {validation.finalDimensions.height}</strong></p>
     <div className="result-actions"><a className="primary-button download-button" href={outcome.downloadUrl} download={outcome.filename}><Download size={17} /> Download optimized image</a><button className="secondary-button" type="button" onClick={onReset}><RotateCcw size={16} /> Start another</button></div>
     <p className="validation-line"><HardDrive size={14} /> {validation.valid ? "Output decoded successfully" : "Output validation needs attention"} · {validation.mimeType.replace("image/", "").toUpperCase()} · Local processing complete</p>
   </section>;

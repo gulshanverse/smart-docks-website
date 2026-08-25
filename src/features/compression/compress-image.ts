@@ -1,10 +1,14 @@
 import { reductionPercent } from "../../lib/file-utils";
 import type { FileAsset } from "../../domain/files/types";
 import type { ImageCompressionIntent } from "../../domain/intents/parse-intent";
-import type { ValidationResult } from "../../domain/workflows/validation";
+import type { ImageDimensions, QualityDecision, ValidationResult, OptimizationStrategy } from "../../domain/workflows/validation";
 import { selectCandidate } from "./select-candidate";
 
 export type CompressionStage = "preparing" | "analyzing" | "optimizing" | "checking";
+
+export interface CompressionOptions {
+  allowResize?: boolean;
+}
 
 export interface CompressionOutcome {
   blob: Blob;
@@ -14,6 +18,7 @@ export interface CompressionOutcome {
   validation: ValidationResult;
   targetLabel: string;
   quality: number;
+  resizeAvailable: boolean;
   warning?: string;
 }
 
@@ -24,9 +29,15 @@ type Candidate = {
   bytes: number;
 };
 
+type CompressionAttempt = {
+  candidate: Candidate;
+  targetAchieved: boolean;
+};
+
 const QUALITY_FLOOR = 0.45;
 const QUALITY_CEILING = 0.95;
-const QUALITY_ITERATIONS = 8;
+const QUALITY_ITERATIONS = 6;
+const RESIZE_SCALES = [0.84, 0.7, 0.56, 0.44, 0.35] as const;
 
 function loadImage(url: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
@@ -49,7 +60,7 @@ function canvasToBlob(canvas: HTMLCanvasElement, mimeType: string, quality: numb
   });
 }
 
-async function inspectEncodedBlob(blob: Blob): Promise<{ width: number; height: number }> {
+async function inspectEncodedBlob(blob: Blob): Promise<ImageDimensions> {
   const url = URL.createObjectURL(blob);
   try {
     const image = await loadImage(url);
@@ -59,31 +70,20 @@ async function inspectEncodedBlob(blob: Blob): Promise<{ width: number; height: 
   }
 }
 
-function candidateScore(candidate: Candidate, sourceMime: string): number {
-  const formatBonus = candidate.mimeType === sourceMime ? 0.03 : 0;
-  return candidate.quality + formatBonus;
-}
-
-function getCandidateMimeTypes(asset: FileAsset): readonly string[] {
-  if (asset.mimeType === "image/png") {
-    return ["image/png", "image/webp"];
-  }
-  if (asset.mimeType === "image/webp") {
-    return ["image/webp", "image/jpeg"];
-  }
+function getCandidateMimeTypes(sourceMime: string): readonly string[] {
+  if (sourceMime === "image/png") return ["image/png", "image/webp"];
+  if (sourceMime === "image/webp") return ["image/webp", "image/jpeg"];
   return ["image/jpeg", "image/webp"];
 }
 
 async function findBestForMime(canvas: HTMLCanvasElement, mimeType: string, targetBytes: number, onStage: (stage: CompressionStage) => void): Promise<{ accepted?: Candidate; floor: Candidate }> {
   let low = QUALITY_FLOOR;
   let high = QUALITY_CEILING;
-  let floor = await canvasToBlob(canvas, mimeType, QUALITY_FLOOR);
-  let floorCandidate: Candidate = { blob: floor, mimeType, quality: QUALITY_FLOOR, bytes: floor.size };
-  let accepted: Candidate | undefined;
+  const floorBlob = await canvasToBlob(canvas, mimeType, QUALITY_FLOOR);
+  const floorCandidate: Candidate = { blob: floorBlob, mimeType, quality: QUALITY_FLOOR, bytes: floorBlob.size };
+  let accepted: Candidate | undefined = floorCandidate.bytes <= targetBytes ? floorCandidate : undefined;
 
-  if (floor.size <= targetBytes) {
-    accepted = floorCandidate;
-  } else {
+  if (!accepted) {
     for (let iteration = 0; iteration < QUALITY_ITERATIONS; iteration += 1) {
       onStage("optimizing");
       const quality = (low + high) / 2;
@@ -95,109 +95,199 @@ async function findBestForMime(canvas: HTMLCanvasElement, mimeType: string, targ
       } else {
         high = quality;
       }
-      if (Math.abs(high - low) < 0.01) break;
+      if (Math.abs(high - low) < 0.012) break;
     }
   }
 
-  const ceilingBlob = await canvasToBlob(canvas, mimeType, QUALITY_CEILING);
-  const ceilingCandidate: Candidate = {
-    blob: ceilingBlob,
+  const bestQualityBlob = await canvasToBlob(canvas, mimeType, QUALITY_CEILING);
+  const bestQualityCandidate: Candidate = {
+    blob: bestQualityBlob,
     mimeType,
     quality: QUALITY_CEILING,
-    bytes: ceilingBlob.size,
+    bytes: bestQualityBlob.size,
   };
-  if (candidateScore(ceilingCandidate, mimeType) > candidateScore(floorCandidate, mimeType) && ceilingCandidate.bytes < floorCandidate.bytes * 0.98) {
-    floorCandidate = ceilingCandidate;
-  }
-
-  return { accepted, floor: floorCandidate };
+  const floor = bestQualityCandidate.bytes < floorCandidate.bytes * 0.98 ? bestQualityCandidate : floorCandidate;
+  return { accepted, floor };
 }
 
-export async function compressImage(asset: FileAsset, intent: ImageCompressionIntent, onStage: (stage: CompressionStage) => void): Promise<CompressionOutcome> {
-  onStage("preparing");
-  const sourceImage = await loadImage(asset.previewUrl);
-  onStage("analyzing");
-
-  if (asset.sizeBytes <= intent.targetBytes) {
-    const originalBlob = await fetch(asset.previewUrl).then((response) => response.blob());
-    onStage("checking");
-    const dimensions = await inspectEncodedBlob(originalBlob);
-    const validation: ValidationResult = {
-      valid: originalBlob.size > 0 && dimensions.width > 0 && dimensions.height > 0 && Boolean(originalBlob.type),
-      targetAchieved: true,
-      targetBytes: intent.targetBytes,
-      outputBytes: originalBlob.size,
-      originalBytes: asset.sizeBytes,
-      reductionPercent: reductionPercent(asset.sizeBytes, originalBlob.size),
-      mimeType: originalBlob.type || asset.mimeType,
-      width: dimensions.width,
-      height: dimensions.height,
-      message: "The original image was already within the requested target, so it was preserved.",
-    };
-    const previewUrl = URL.createObjectURL(originalBlob);
-    const downloadUrl = URL.createObjectURL(originalBlob);
-    const extension = originalBlob.type === "image/png" ? "png" : originalBlob.type === "image/webp" ? "webp" : "jpg";
-    return {
-      blob: originalBlob,
-      previewUrl,
-      downloadUrl,
-      filename: `${asset.name.replace(/\.[^/.]+$/, "")}-optimized.${extension}`,
-      validation,
-      targetLabel: intent.targetLabel,
-      quality: 1,
-    };
-  }
-
-  const canvas = document.createElement("canvas");
-  canvas.width = sourceImage.naturalWidth;
-  canvas.height = sourceImage.naturalHeight;
-  const context = canvas.getContext("2d");
-  if (!context) throw new Error("Your browser does not provide a canvas context for local image processing.");
-  context.drawImage(sourceImage, 0, 0);
-
+async function optimizeCanvas(canvas: HTMLCanvasElement, targetBytes: number, sourceMime: string, onStage: (stage: CompressionStage) => void): Promise<CompressionAttempt> {
   const acceptedCandidates: Candidate[] = [];
   const floorCandidates: Candidate[] = [];
-  for (const mimeType of getCandidateMimeTypes(asset)) {
-    const result = await findBestForMime(canvas, mimeType, intent.targetBytes, onStage);
+  for (const mimeType of getCandidateMimeTypes(sourceMime)) {
+    const result = await findBestForMime(canvas, mimeType, targetBytes, onStage);
     if (result.accepted) acceptedCandidates.push(result.accepted);
     floorCandidates.push(result.floor);
   }
 
   const candidates = acceptedCandidates.length > 0 ? acceptedCandidates : floorCandidates;
-  const selection = selectCandidate(candidates, intent.targetBytes, asset.mimeType);
+  const selection = selectCandidate(candidates, targetBytes, sourceMime);
   const candidate = candidates.find((item) => item.bytes === selection.candidate.bytes && item.quality === selection.candidate.quality && item.mimeType === selection.candidate.mimeType) ?? candidates[0];
+  return { candidate, targetAchieved: selection.targetAchieved };
+}
 
-  onStage("checking");
-  const dimensions = await inspectEncodedBlob(candidate.blob);
-  const targetAchieved = selection.targetAchieved;
+function drawSource(canvas: HTMLCanvasElement, sourceImage: HTMLImageElement, dimensions: ImageDimensions): void {
+  canvas.width = dimensions.width;
+  canvas.height = dimensions.height;
+  const context = canvas.getContext("2d");
+  if (!context) throw new Error("Your browser does not provide a canvas context for local image processing.");
+  context.clearRect(0, 0, dimensions.width, dimensions.height);
+  context.drawImage(sourceImage, 0, 0, dimensions.width, dimensions.height);
+}
+
+export function scaledDimensions(original: ImageDimensions, scale: number): ImageDimensions {
+  return {
+    width: Math.max(1, Math.round(original.width * scale)),
+    height: Math.max(1, Math.round(original.height * scale)),
+  };
+}
+
+export function qualityDecision(quality: number, mimeType: string, preserved: boolean, targetAchieved: boolean): QualityDecision {
+  if (preserved) return "preserved";
+  if (mimeType === "image/png" || quality >= 0.75) return "good";
+  if (targetAchieved && quality >= 0.55) return "acceptable";
+  return "best-effort";
+}
+
+function extensionForMime(mimeType: string): string {
+  return mimeType === "image/png" ? "png" : mimeType === "image/webp" ? "webp" : "jpg";
+}
+
+async function createOutcome(args: {
+  asset: FileAsset;
+  intent: ImageCompressionIntent;
+  blob: Blob;
+  dimensions: ImageDimensions;
+  strategy: OptimizationStrategy;
+  quality: number;
+  message: string;
+  warning?: string;
+  resizeAvailable: boolean;
+  qualityDecision: QualityDecision;
+}): Promise<CompressionOutcome> {
+  const { asset, intent, blob, dimensions, strategy, quality, message, warning, resizeAvailable } = args;
+  const mimeType = blob.type || asset.mimeType;
   const validation: ValidationResult = {
-    valid: candidate.blob.size > 0 && dimensions.width > 0 && dimensions.height > 0 && Boolean(candidate.blob.type),
-    targetAchieved,
+    valid: blob.size > 0 && dimensions.width > 0 && dimensions.height > 0 && Boolean(mimeType),
+    targetAchieved: blob.size <= intent.targetBytes,
     targetBytes: intent.targetBytes,
-    outputBytes: candidate.blob.size,
+    outputBytes: blob.size,
     originalBytes: asset.sizeBytes,
-    reductionPercent: reductionPercent(asset.sizeBytes, candidate.blob.size),
-    mimeType: candidate.blob.type,
+    reductionPercent: reductionPercent(asset.sizeBytes, blob.size),
+    mimeType,
     width: dimensions.width,
     height: dimensions.height,
-    message: targetAchieved
-      ? "Target achieved and output decoded successfully."
-      : "Reaching that target would significantly reduce image quality. This is the best quality-preserving result available without resizing.",
+    originalDimensions: { width: asset.width, height: asset.height },
+    finalDimensions: dimensions,
+    optimizationStrategy: strategy,
+    qualityDecision: args.qualityDecision,
+    resizeApplied: dimensions.width !== asset.width || dimensions.height !== asset.height,
+    message,
   };
-
-  const extension = candidate.blob.type === "image/png" ? "png" : candidate.blob.type === "image/webp" ? "webp" : "jpg";
+  const extension = extensionForMime(mimeType);
   const filename = `${asset.name.replace(/\.[^/.]+$/, "")}-optimized.${extension}`;
-  const previewUrl = URL.createObjectURL(candidate.blob);
-  const downloadUrl = URL.createObjectURL(candidate.blob);
-
   return {
-    blob: candidate.blob,
-    previewUrl,
-    downloadUrl,
+    blob,
+    previewUrl: URL.createObjectURL(blob),
+    downloadUrl: URL.createObjectURL(blob),
     filename,
     validation,
     targetLabel: intent.targetLabel,
-    quality: candidate.quality,
-    warning: targetAchieved ? undefined : validation.message,
+    quality,
+    resizeAvailable,
+    warning,
   };
+}
+
+export async function compressImage(asset: FileAsset, intent: ImageCompressionIntent, onStage: (stage: CompressionStage) => void, options: CompressionOptions = {}): Promise<CompressionOutcome> {
+  const allowResize = options.allowResize ?? true;
+  onStage("preparing");
+  const sourceImage = await loadImage(asset.previewUrl);
+  onStage("analyzing");
+  const originalDimensions: ImageDimensions = { width: sourceImage.naturalWidth, height: sourceImage.naturalHeight };
+
+  if (asset.sizeBytes <= intent.targetBytes) {
+    const originalBlob = await fetch(asset.previewUrl).then((response) => response.blob());
+    onStage("checking");
+    return createOutcome({
+      asset,
+      intent,
+      blob: originalBlob,
+      dimensions: originalDimensions,
+      strategy: "original-preserved",
+      quality: 1,
+      qualityDecision: "preserved",
+      message: "The original image was already within the requested target, so it was preserved.",
+      resizeAvailable: false,
+    });
+  }
+
+  const canvas = document.createElement("canvas");
+  drawSource(canvas, sourceImage, originalDimensions);
+  const compressionOnly = await optimizeCanvas(canvas, intent.targetBytes, asset.mimeType, onStage);
+  onStage("checking");
+  const originalAttemptDimensions = await inspectEncodedBlob(compressionOnly.candidate.blob);
+
+  if (compressionOnly.targetAchieved) {
+    return createOutcome({
+      asset,
+      intent,
+      blob: compressionOnly.candidate.blob,
+      dimensions: originalAttemptDimensions,
+      strategy: "compression-only",
+      quality: compressionOnly.candidate.quality,
+      qualityDecision: qualityDecision(compressionOnly.candidate.quality, compressionOnly.candidate.mimeType, false, true),
+      message: "Target achieved with compression only; original dimensions were preserved.",
+      resizeAvailable: false,
+    });
+  }
+
+  const compressionOnlySize = compressionOnly.candidate.bytes;
+  if (!allowResize) {
+    return createOutcome({
+      asset,
+      intent,
+      blob: compressionOnly.candidate.blob,
+      dimensions: originalAttemptDimensions,
+      strategy: "compression-only",
+      quality: compressionOnly.candidate.quality,
+      qualityDecision: "best-effort",
+      message: `At the original dimensions, the best acceptable result is ${Math.round(compressionOnlySize / 1000)}KB.`,
+      warning: `Compression alone couldn't reach ${intent.targetLabel} without significant quality loss.`,
+      resizeAvailable: true,
+    });
+  }
+
+  for (const scale of RESIZE_SCALES) {
+    const dimensions = scaledDimensions(originalDimensions, scale);
+    drawSource(canvas, sourceImage, dimensions);
+    const resizedAttempt = await optimizeCanvas(canvas, intent.targetBytes, asset.mimeType, onStage);
+    if (!resizedAttempt.targetAchieved) continue;
+    const finalDimensions = await inspectEncodedBlob(resizedAttempt.candidate.blob);
+    return createOutcome({
+      asset,
+      intent,
+      blob: resizedAttempt.candidate.blob,
+      dimensions: finalDimensions,
+      strategy: "resize-and-compress",
+      quality: resizedAttempt.candidate.quality,
+      qualityDecision: qualityDecision(resizedAttempt.candidate.quality, resizedAttempt.candidate.mimeType, false, true),
+      message: `SmartDocs reduced dimensions from ${originalDimensions.width} × ${originalDimensions.height} to ${finalDimensions.width} × ${finalDimensions.height} to reach your target.`,
+      warning: `Compression alone couldn't reach ${intent.targetLabel} without significant quality loss.`,
+      resizeAvailable: true,
+    });
+  }
+
+  const originalResultDimensions = await inspectEncodedBlob(compressionOnly.candidate.blob);
+  return createOutcome({
+    asset,
+    intent,
+    blob: compressionOnly.candidate.blob,
+    dimensions: originalResultDimensions,
+    strategy: "compression-only",
+    quality: compressionOnly.candidate.quality,
+    qualityDecision: "best-effort",
+    message: `Even after evaluating careful dimension reductions, the best acceptable result is ${Math.round(compressionOnlySize / 1000)}KB.`,
+    warning: `We couldn't reach ${intent.targetLabel} without making the image significantly less readable.`,
+    resizeAvailable: true,
+  });
 }

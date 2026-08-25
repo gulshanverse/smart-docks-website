@@ -2,7 +2,7 @@
 
 ## One file. One clear goal.
 
-SmartDocs is an intent-first workspace for turning a human file goal into a verified result. **Phase 1 implements the first real vertical slice:** browser-local image target-size compression with deterministic goal interpretation, actual byte measurement, validation, and download.
+SmartDocs is an intent-first workspace for turning a human file goal into a verified result. **Phase 1.5 extends the first real vertical slice:** browser-local image target-size optimization with deterministic goal interpretation, compression-first search, bounded resize recovery, actual byte measurement, validation, and download.
 
 > No image is uploaded to a server by the current application. Processing happens locally in the browser.
 
@@ -20,6 +20,9 @@ SmartDocs is an intent-first workspace for turning a human file goal into a veri
 | Extensible tool registry with `image.compress.target_size` | Implemented |
 | Typed workflow model with compression and validation steps | Implemented |
 | Browser-local adaptive encoding and target-size search | Implemented |
+| Deterministic resize recovery when compression alone is not acceptable | Implemented |
+| Original-dimensions control with Allow resizing recovery action | Implemented |
+| Strategy metadata: original-preserved, compression-only, resize-and-compress | Implemented |
 | Output decode validation, target check, dimensions, and reduction metrics | Implemented |
 | Downloadable optimized result and reset workflow | Implemented |
 | Honest no-file, unsupported-format, invalid-image, decode, oversized, ambiguous, and unsupported-goal states | Implemented |
@@ -40,16 +43,18 @@ Natural-language target parsing
   ↓
 Typed workflow plan
   ↓
-Adaptive local encoding search
+Compression-first candidate search
+  ↓
+Bounded resize recovery when necessary
   ↓
 Decode, byte, target, and dimension validation
   ↓
 Preview, metrics, and download
 ```
 
-The optimizer aims for the **highest quality candidate that satisfies the requested byte target**. JPEG and WebP use measured quality candidates. PNG transparency is preserved by retaining PNG as a candidate and using WebP only as an alternative format that supports alpha. If the target is not reasonably achievable at the quality floor, the result is labeled as best quality available and explains the tradeoff instead of silently destroying the image.
+The optimizer first tries to **minimize quality loss at the original dimensions**. If compression cannot reach the target at the quality floor, it evaluates a bounded set of dimension scales and selects the smallest necessary reduction that reaches the target. JPEG and WebP use measured quality candidates. PNG transparency is preserved by retaining PNG as a candidate and using WebP only as an alternative format that supports alpha. If the target is not reasonably achievable after the resize policy, the result is labeled as best quality available and explains the tradeoff instead of silently destroying the image.
 
-If the original image is already under the requested target, SmartDocs preserves the original bytes rather than re-encoding it into a larger file.
+If the original image is already under the requested target, SmartDocs preserves the original bytes rather than re-encoding it into a larger file. Result metadata communicates whether the strategy was `original-preserved`, `compression-only`, or `resize-and-compress`. When resizing is used, the result shows original and final dimensions and explains why.
 
 ## Privacy and security boundary
 
@@ -82,6 +87,7 @@ This is a browser-local privacy boundary. It is not a claim about server retenti
 │   └── tests/           # domain and optimizer-selection tests
 └── docs/
     ├── phase-1-browser-verification.md
+    ├── phase-1.5-browser-verification.md
     ├── repository-audit.md
     └── phase-0.5-final-report.md
 ```
@@ -114,17 +120,17 @@ pnpm test
 pnpm build
 ```
 
-The current automated tests cover decimal KB/MB conversion, human-readable byte formatting, reduction percentages, valid and ambiguous intent parsing, unsupported goals, and compression candidate selection for both achievable and impossible targets.
+The current automated tests cover decimal KB/MB conversion, human-readable byte formatting, reduction percentages, valid and ambiguous intent parsing, unsupported goals, compression candidate selection for achievable and impossible targets, aspect-ratio-preserving resize dimensions, and deterministic quality decisions.
 
 ## Browser verification
 
-The Phase 1 workflow was verified with a real 1600 × 1000 PNG fixture. The browser successfully inspected the file, displayed its metadata, accepted `make this image under 100KB`, returned a verified local result, preserved the original because it was already under the target, exposed a real download link, and reset to the empty state. A no-file submission produced an actionable recovery notice.
+Phase 1.5 was verified with a real 1600 × 1000, 1.6 MB JPEG fixture. The browser accepted `make this image under 50KB`, reported that compression alone was not acceptable, resized to 704 × 440, reached 23.5 KB, verified the output, exposed a real download, and allowed the user to re-run with original dimensions before choosing Allow resizing. The original-under-target behavior and no-file recovery path remain intact.
 
-See [`docs/phase-1-browser-verification.md`](docs/phase-1-browser-verification.md) for the verification record.
+See [`docs/phase-1.5-browser-verification.md`](docs/phase-1.5-browser-verification.md) for the verification record.
 
 ## Roadmap
 
-The next phase should be approved before implementation and may add a real resize-first recovery option for impossible targets. Later phases can consider PDF workflows, OCR, document conversion, and AI-assisted planning through explicit security and processing boundaries. Accounts, cloud storage, backend workers, billing, batch processing, audio/video, and other infrastructure remain outside the current scope.
+The next phase should be approved before implementation. It may improve measurable image quality heuristics or add a carefully scoped resize policy refinement. PDF workflows, OCR, document conversion, AI-assisted planning, accounts, cloud storage, backend workers, billing, batch processing, audio/video, and other infrastructure remain outside the current scope.
 
 ## License
 
