@@ -13,12 +13,15 @@ import {
   WandSparkles,
   X,
 } from "lucide-react";
-import type { FileAsset, FileIntakeError } from "./domain/files/types";
+import type { FileAsset, FileIntakeError, PdfAsset } from "./domain/files/types";
+import type { PdfInspectionValidation } from "./domain/pdfs/types";
 import { formatBytes } from "./lib/file-utils";
 import { parseImageIntent, type ParsedIntent } from "./domain/intents/parse-intent";
-import { createImageCompressionWorkflow } from "./domain/workflows/types";
+import { createImageCompressionWorkflow, createPdfInspectionWorkflow } from "./domain/workflows/types";
+import { validatePdfInspection } from "./domain/pdfs/validation";
 import { compressImage, type CompressionOutcome, type CompressionStage } from "./features/compression/compress-image";
-import { inspectImageFile } from "./features/intake/read-image";
+import { inspectFile } from "./features/intake/inspect-file";
+import { PDFJS_VERSION } from "./features/pdf/config";
 import "./styles/tokens.css";
 import "./styles/app.css";
 
@@ -28,11 +31,17 @@ interface Notice {
   recovery: string;
 }
 
-const stageLabels: Record<CompressionStage, string> = {
+type PdfInspectionStage = "validating" | "inspecting" | "rendering";
+type WorkflowStage = CompressionStage | PdfInspectionStage;
+
+const stageLabels: Record<WorkflowStage, string> = {
   preparing: "Preparing image",
   analyzing: "Analyzing image",
   optimizing: "Optimizing",
   checking: "Checking result",
+  validating: "Validating PDF",
+  inspecting: "Inspecting PDF",
+  rendering: "Rendering preview",
 };
 
 const examples = ["make this image under 100KB", "compress to 500KB", "make it less than 1 MB"];
@@ -46,12 +55,13 @@ function App() {
   const assetUrlRef = useRef<string | null>(null);
   const resultUrlsRef = useRef<string[]>([]);
   const [asset, setAsset] = useState<FileAsset | null>(null);
+  const [pdfValidation, setPdfValidation] = useState<PdfInspectionValidation | null>(null);
   const [goal, setGoal] = useState("");
   const [intent, setIntent] = useState<ParsedIntent | null>(null);
   const [outcome, setOutcome] = useState<CompressionOutcome | null>(null);
   const [notice, setNotice] = useState<Notice | null>(null);
   const [readingFile, setReadingFile] = useState(false);
-  const [stage, setStage] = useState<CompressionStage | null>(null);
+  const [stage, setStage] = useState<WorkflowStage | null>(null);
   const [keepOriginalDimensions, setKeepOriginalDimensions] = useState(false);
 
   useEffect(() => {
@@ -76,27 +86,34 @@ function App() {
     if (!file) return;
     releaseUrls();
     setAsset(null);
+    setPdfValidation(null);
     setOutcome(null);
     setIntent(null);
     setKeepOriginalDimensions(false);
     setNotice(null);
     setReadingFile(true);
     try {
-      const result = await inspectImageFile(file);
+      const result = await inspectFile(file, setStage);
       if ("code" in result) {
         setNotice(intakeErrorToNotice(result));
         return;
       }
       assetUrlRef.current = result.previewUrl;
+
+      if (result.category === "pdf") {
+        const workflow = createPdfInspectionWorkflow(result);
+        setPdfValidation(validatePdfInspection(workflow.input));
+      }
       setAsset(result);
     } catch {
       setNotice({
         title: "We could not inspect that file.",
-        message: "The browser stopped while reading the image.",
-        recovery: "Try another JPEG, PNG, or WebP file.",
+        message: "The browser stopped while reading the file.",
+        recovery: "Try another supported image or PDF file.",
       });
     } finally {
       setReadingFile(false);
+      setStage(null);
     }
   }
 
@@ -114,9 +131,17 @@ function App() {
   async function runWorkflow(options: { allowResize?: boolean } = {}) {
     if (!asset) {
       setNotice({
-        title: "Add an image first.",
+        title: "Add a file first.",
         message: "There is no file ready for this workflow.",
-        recovery: "Choose a JPEG, PNG, or WebP image above.",
+        recovery: "Choose a supported image or PDF above.",
+      });
+      return;
+    }
+    if (asset.category === "pdf") {
+      setNotice({
+        title: "PDF inspection is ready.",
+        message: "PDF target-size compression is not available yet.",
+        recovery: "You can review the detected document above. PDF transformations are planned for a later phase.",
       });
       return;
     }
@@ -137,7 +162,7 @@ function App() {
     setStage("preparing");
     try {
       const workflow = createImageCompressionWorkflow(asset, parsed.intent);
-      const result = await compressImage(workflow.input, workflow.intent, setStage, { allowResize: options.allowResize ?? !keepOriginalDimensions });
+      const result = await compressImage(asset, workflow.intent, setStage, { allowResize: options.allowResize ?? !keepOriginalDimensions });
       resultUrlsRef.current = [result.previewUrl, result.downloadUrl];
       setOutcome(result);
     } catch (error) {
@@ -159,6 +184,7 @@ function App() {
   function reset() {
     releaseUrls();
     setAsset(null);
+    setPdfValidation(null);
     setGoal("");
     setIntent(null);
     setOutcome(null);
@@ -193,7 +219,7 @@ function App() {
             <div>
               <p className="eyebrow"><span className="eyebrow-line" /> First real workflow</p>
               <h1>One file.<br /><span>One clear goal.</span></h1>
-              <p className="hero-lede">SmartDocs turns a human request into a verified result. Start with a real image, describe the size you need, and keep the whole workflow in your browser.</p>
+              <p className="hero-lede">SmartDocs turns a human request into a verified result. Start with a real image or PDF, describe the size you need, and keep the whole workflow in your browser.</p>
               <div className="hero-proof"><span><Check size={14} /> No server upload</span><span><Check size={14} /> Actual byte check</span><span><Check size={14} /> Downloadable result</span></div>
             </div>
             <div className="hero-side-note"><span>01</span><p>Give the work a goal, not a tool name.</p><ArrowRight size={22} /></div>
@@ -205,51 +231,53 @@ function App() {
             <div className="section-heading">
               <div>
                 <p className="eyebrow">The workspace</p>
-                <h2 id="workspace-title">What do you want to do<br /><span>with your image?</span></h2>
+                <h2 id="workspace-title">What do you want to do<br /><span>with your file?</span></h2>
               </div>
-              <p className="section-intro">Describe an exact target. SmartDocs will interpret it, find the best local path, and check the output before you download.</p>
+              <p className="section-intro">Describe an exact goal. SmartDocs will understand the file first, then only offer a capability that is genuinely available.</p>
             </div>
 
             <div className="workflow-layout">
               <div className="workflow-card intake-card">
-                <div className="card-label"><span className="label-icon"><Upload size={15} /></span> 01 · Add an image</div>
-                <input ref={inputRef} className="file-picker-input" type="file" accept="image/jpeg,image/png,image/webp" aria-label="Choose a JPEG, PNG, or WebP image" onChange={(event) => void handleFile(event.target.files?.[0])} />
+                <div className="card-label"><span className="label-icon"><Upload size={15} /></span> 01 · Add a file</div>
+                <input ref={inputRef} className="file-picker-input" type="file" accept="image/jpeg,image/png,image/webp,application/pdf,.pdf" aria-label="Choose a JPEG, PNG, WebP image, or PDF" onChange={(event) => void handleFile(event.target.files?.[0])} />
                 {!asset ? (
                   <div className="dropzone" role="button" tabIndex={0} onClick={() => inputRef.current?.click()} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") inputRef.current?.click(); }} onDragOver={(event) => event.preventDefault()} onDrop={handleDrop} data-testid="dropzone">
                     <span className="dropzone-icon"><FileImage size={25} /></span>
-                    <strong>{readingFile ? "Reading image…" : "Drop an image here"}</strong>
-                    <span>or choose a JPEG, PNG, or WebP file</span>
-                    <small>Maximum input size: 25 MB</small>
+                    <strong>{readingFile ? "Inspecting file…" : "Drop an image or PDF here"}</strong>
+                    <span>or choose a JPEG, PNG, WebP image, or PDF file</span>
+                    <small>Images: 25 MB · PDFs: 50 MB</small>
                   </div>
                 ) : (
-                  <div className="asset-preview" data-testid="asset-preview">
+                  asset.category === "image" ? <div className="asset-preview" data-testid="asset-preview">
                     <img src={asset.previewUrl} alt={`Preview of ${asset.name}`} />
                     <div className="asset-info">
                       <div><strong>{asset.name}</strong><button className="icon-button" type="button" onClick={reset} aria-label="Remove image"><X size={16} /></button></div>
                       <span>{formatBytes(asset.sizeBytes)} · {asset.width} × {asset.height} · {asset.mimeType.replace("image/", "").toUpperCase()}</span>
                       <span className="local-badge"><LockKeyhole size={13} /> Stays in your browser</span>
                     </div>
-                  </div>
+                  </div> : <PdfAssetCard asset={asset} validation={pdfValidation} onReset={reset} />
                 )}
               </div>
 
               <div className="workflow-card goal-card">
                 <div className="card-label"><span className="label-icon violet"><WandSparkles size={15} /></span> 02 · Describe the goal</div>
-                <label htmlFor="goal-input" className="goal-label">What should happen to this image?</label>
-                <textarea id="goal-input" value={goal} onChange={(event) => handleGoalChange(event.target.value)} placeholder="e.g. make this image under 100KB" rows={3} data-testid="goal-input" />
-                <div className="example-row" aria-label="Goal examples">
-                  {examples.map((example) => <button key={example} type="button" onClick={() => handleGoalChange(example)}>{example}</button>)}
-                </div>
-                {intent?.status === "valid" && intent.intent ? <div className="intent-confirmation"><Check size={15} /> Target understood: ≤ {intent.intent.targetLabel}</div> : null}
-                <button className="primary-button" type="button" onClick={() => void runWorkflow()} disabled={isBusy} data-testid="run-workflow">{stage ? <><span className="spinner" /> {stageLabels[stage]}…</> : <><Sparkles size={17} /> Optimize locally <ArrowRight size={17} /></>}</button>
-                <p className="microcopy"><LockKeyhole size={13} /> Your image never leaves this browser.</p>
+                <label htmlFor="goal-input" className="goal-label">What should happen to this file?</label>
+                <textarea id="goal-input" value={goal} onChange={(event) => handleGoalChange(event.target.value)} placeholder={asset?.category === "pdf" ? "e.g. make this PDF under 2MB" : "e.g. make this image under 100KB"} rows={3} data-testid="goal-input" />
+                {asset?.category === "pdf" ? <div className="pdf-goal-note" role="status"><strong>PDF transformations are not available yet.</strong><span>Inspection is ready; compression and conversion will come in a later phase.</span></div> : <>
+                  <div className="example-row" aria-label="Goal examples">
+                    {examples.map((example) => <button key={example} type="button" onClick={() => handleGoalChange(example)}>{example}</button>)}
+                  </div>
+                  {intent?.status === "valid" && intent.intent ? <div className="intent-confirmation"><Check size={15} /> Target understood: ≤ {intent.intent.targetLabel}</div> : null}
+                  <button className="primary-button" type="button" onClick={() => void runWorkflow()} disabled={isBusy} data-testid="run-workflow">{stage ? <><span className="spinner" /> {stageLabels[stage]}…</> : <><Sparkles size={17} /> Optimize locally <ArrowRight size={17} /></>}</button>
+                </>}
+                <p className="microcopy"><LockKeyhole size={13} /> {asset?.category === "pdf" ? "PDF inspection is processed locally in your browser." : "Your image never leaves this browser."}</p>
               </div>
             </div>
 
             {notice ? <div className="notice" role="alert"><div className="notice-icon"><X size={17} /></div><div><strong>{notice.title}</strong><p>{notice.message}</p><span>{notice.recovery}</span></div></div> : null}
-            {stage ? <div className="processing-strip" role="status" aria-live="polite"><span className="spinner" /><div><strong>{stageLabels[stage]}</strong><span>Working with the image in your browser. No progress percentage is invented.</span></div><ChevronDown size={18} /></div> : null}
+            {stage ? <div className="processing-strip" role="status" aria-live="polite"><span className="spinner" /><div><strong>{stageLabels[stage]}</strong><span>Working locally in your browser. No progress percentage is invented.</span></div><ChevronDown size={18} /></div> : null}
 
-            {outcome && asset ? <ResultPanel asset={asset} outcome={outcome} onReset={reset} onReprocess={reprocessWithResize} keepOriginalDimensions={keepOriginalDimensions} /> : null}
+            {outcome && asset?.category === "image" ? <ResultPanel asset={asset} outcome={outcome} onReset={reset} onReprocess={reprocessWithResize} keepOriginalDimensions={keepOriginalDimensions} /> : null}
           </div>
         </section>
 
@@ -265,16 +293,33 @@ function App() {
         </section>
 
         <section id="roadmap" className="roadmap-section" aria-labelledby="roadmap-title">
-          <div className="container roadmap-grid"><div><p className="eyebrow">A measured roadmap</p><h2 id="roadmap-title">Build the foundation<br /><span>before the universe.</span></h2></div><div className="roadmap-list"><div className="roadmap-item current"><span className="roadmap-marker" /><div><strong>Smart image optimizer</strong><p>Compression, resize recovery, and verified local results.</p></div><span className="roadmap-state">Now</span></div><div className="roadmap-item"><span className="roadmap-marker" /><div><strong>Document workflows</strong><p>PDF, OCR, conversion, and isolated processing.</p></div><span className="roadmap-state">Planned</span></div><div className="roadmap-item"><span className="roadmap-marker" /><div><strong>AI-assisted understanding</strong><p>Schema-constrained planning when it adds real value.</p></div><span className="roadmap-state">Later</span></div></div></div>
+          <div className="container roadmap-grid"><div><p className="eyebrow">A measured roadmap</p><h2 id="roadmap-title">Build the foundation<br /><span>before the universe.</span></h2></div>      <div className="roadmap-list"><div className="roadmap-item current"><span className="roadmap-marker" /><div><strong>Smart image optimizer</strong><p>Compression, resize recovery, and verified local results.</p></div><span className="roadmap-state">Now</span></div><div className="roadmap-item current"><span className="roadmap-marker" /><div><strong>PDF inspection foundation</strong><p>Local validation, heuristic classification, and first-page preview.</p></div><span className="roadmap-state">Now</span></div><div className="roadmap-item"><span className="roadmap-marker" /><div><strong>PDF transformations and AI</strong><p>Compression, conversion, OCR, and planning remain future work.</p></div><span className="roadmap-state">Planned</span></div></div></div>
         </section>
       </main>
 
-      <footer className="site-footer"><div className="container footer-inner"><a className="brand footer-brand" href="#top" aria-label="Back to SmartDocs home"><span className="brand-mark" aria-hidden="true"><span /><span /><span /></span><span className="brand-name">SmartDocs</span></a><p>One file + one goal → one verified result.</p><span className="footer-phase">Phase 1.5 · Smart optimizer</span></div></footer>
+      <footer className="site-footer"><div className="container footer-inner"><a className="brand footer-brand" href="#top" aria-label="Back to SmartDocs home"><span className="brand-mark" aria-hidden="true"><span /><span /><span /></span><span className="brand-name">SmartDocs</span></a><p>One file + one goal → one verified result.</p><span className="footer-phase">Phase 2A · PDF inspection foundation</span></div></footer>
     </div>
   );
 }
 
-function ResultPanel({ asset, outcome, onReset, onReprocess, keepOriginalDimensions }: { asset: FileAsset; outcome: CompressionOutcome; onReset: () => void; onReprocess: (allowResize: boolean) => void; keepOriginalDimensions: boolean }) {
+function PdfAssetCard({ asset, validation, onReset }: { asset: PdfAsset; validation: PdfInspectionValidation | null; onReset: () => void }) {
+  return <div className="pdf-asset-card" data-testid="pdf-preview-card">
+    <div className="pdf-preview-frame">{asset.previewUrl ? <img src={asset.previewUrl} alt={`First-page preview of ${asset.name}`} /> : <span>Preview unavailable</span>}</div>
+    <div className="pdf-asset-info">
+      <div><strong>{asset.name}</strong><button className="icon-button" type="button" onClick={onReset} aria-label="Remove PDF"><X size={16} /></button></div>
+      <span>{formatBytes(asset.sizeBytes)} · {asset.pageCount} {asset.pageCount === 1 ? "page" : "pages"}</span>
+      <span>{asset.classification === "scanned" ? "Likely scanned PDF" : asset.classification === "mixed" ? "Mixed PDF" : asset.classification === "text" ? "Text PDF" : "PDF detected"}</span>
+      <span>Text layer: {asset.textPresence === "detected" ? "Detected" : asset.textPresence === "limited" ? "Limited" : "Not detected"}</span>
+      {asset.pageDimensions ? <span>{asset.pageDimensions.label}</span> : null}
+      <details className="pdf-details"><summary>Details</summary><span>PDF version: {asset.pdfVersion ?? "Not declared"}</span><span>Inspection engine: PDF.js {PDFJS_VERSION}</span></details>
+      {validation ? <span className={`pdf-validation ${validation.valid ? "valid" : "invalid"}`}><Check size={13} /> {validation.message}</span> : null}
+      <span className="local-badge"><LockKeyhole size={13} /> PDF inspection is processed locally in your browser</span>
+      {asset.warnings.length > 0 ? <small>{asset.warnings[0]}</small> : null}
+    </div>
+  </div>;
+}
+
+function ResultPanel({ asset, outcome, onReset, onReprocess, keepOriginalDimensions }: { asset: Extract<FileAsset, { category: "image" }>; outcome: CompressionOutcome; onReset: () => void; onReprocess: (allowResize: boolean) => void; keepOriginalDimensions: boolean }) {
   const { validation } = outcome;
   return <section className="result-panel" aria-labelledby="result-title" data-testid="result-panel">
     <div className="result-heading"><div><p className="eyebrow"><span className="eyebrow-line" /> 03 · Verified result</p><h2 id="result-title">Your image is ready.</h2></div><span className={validation.targetAchieved ? "result-status achieved" : "result-status warning"}>{validation.targetAchieved ? <Check size={15} /> : <WandSparkles size={15} />}{validation.targetAchieved ? "Target achieved" : "Best quality available"}</span></div>

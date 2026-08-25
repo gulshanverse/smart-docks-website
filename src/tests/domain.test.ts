@@ -3,6 +3,11 @@ import { formatBytes, reductionPercent } from "../lib/file-utils";
 import { parseByteTarget, parseImageIntent } from "../domain/intents/parse-intent";
 import { selectCandidate } from "../features/compression/select-candidate";
 import { qualityDecision, scaledDimensions } from "../features/compression/compress-image";
+import { MAX_PDF_INPUT_BYTES } from "../domain/files/types";
+import { classifyPdf } from "../domain/pdfs/types";
+import { validatePdfInspection } from "../domain/pdfs/validation";
+import { createPdfInspectionWorkflow } from "../domain/workflows/types";
+import { hasPdfSignature, isPdfWithinLocalInspectionLimit, normalizePageDimensions, readPdfVersion } from "../domain/pdfs/helpers";
 
 describe("byte units", () => {
   it("uses decimal KB and MB values", () => {
@@ -51,6 +56,89 @@ describe("smart resize policy", () => {
     expect(qualityDecision(0.82, "image/jpeg", false, true)).toBe("good");
     expect(qualityDecision(0.6, "image/jpeg", false, true)).toBe("acceptable");
     expect(qualityDecision(0.45, "image/jpeg", false, false)).toBe("best-effort");
+  });
+});
+
+describe("PDF inspection foundation", () => {
+  it("accepts a real PDF signature and reads its version", () => {
+    const header = new TextEncoder().encode("%PDF-1.7\\n%âãÏÓ");
+    expect(hasPdfSignature(header)).toBe(true);
+    expect(readPdfVersion(header)).toBe("1.7");
+    expect(hasPdfSignature(new TextEncoder().encode("not-a-pdf"))).toBe(false);
+  });
+
+  it("classifies text, scanned, mixed, and unknown PDFs from bounded signals", () => {
+    expect(classifyPdf({ pageCount: 3, pagesSampled: 3, pagesWithText: 3, textItemCount: 10, boundedCharacterCount: 200, firstPageHasRasterImage: false, rasterPages: 0, protected: false })).toBe("text");
+    expect(classifyPdf({ pageCount: 3, pagesSampled: 3, pagesWithText: 0, textItemCount: 0, boundedCharacterCount: 0, firstPageHasRasterImage: true, rasterPages: 3, protected: false })).toBe("scanned");
+    expect(classifyPdf({ pageCount: 3, pagesSampled: 3, pagesWithText: 2, textItemCount: 10, boundedCharacterCount: 200, firstPageHasRasterImage: false, rasterPages: 1, protected: false })).toBe("mixed");
+    expect(classifyPdf({ pageCount: 1, pagesSampled: 1, pagesWithText: 0, textItemCount: 0, boundedCharacterCount: 0, firstPageHasRasterImage: false, rasterPages: 0, protected: false })).toBe("unknown");
+    expect(classifyPdf({ pageCount: 1, pagesSampled: 1, pagesWithText: 1, textItemCount: 3, boundedCharacterCount: 50, firstPageHasRasterImage: false, rasterPages: 0, protected: true })).toBe("protected");
+  });
+
+  it("normalizes page dimensions into a useful paper and orientation label", () => {
+    expect(normalizePageDimensions([0, 0, 595.28, 841.89]).label).toContain("A4");
+    expect(normalizePageDimensions([0, 0, 792, 612]).label).toContain("Landscape");
+    expect(normalizePageDimensions([0, 0, 500, 500]).label).toContain("Portrait");
+  });
+
+  it("keeps the browser PDF input limit explicit and validates local results", () => {
+    expect(MAX_PDF_INPUT_BYTES).toBe(50 * 1024 * 1024);
+    expect(isPdfWithinLocalInspectionLimit(MAX_PDF_INPUT_BYTES)).toBe(true);
+    expect(isPdfWithinLocalInspectionLimit(MAX_PDF_INPUT_BYTES + 1)).toBe(false);
+    const asset = {
+      id: "pdf-test",
+      name: "fixture.pdf",
+      sizeBytes: 10_000,
+      extension: "pdf",
+      processingBoundary: "browser-local" as const,
+      category: "pdf" as const,
+      mimeType: "application/pdf" as const,
+      pdfVersion: "1.7",
+      pageCount: 2,
+      encrypted: false,
+      passwordProtected: false,
+      textPresence: "detected" as const,
+      textExtractable: true,
+      classification: "mixed" as const,
+      pageDimensions: { widthPoints: 595, heightPoints: 842, label: "A4 · Portrait" },
+      previewUrl: "blob:preview",
+      capabilities: { inspect: true as const, renderPreview: true as const },
+      warnings: [],
+    };
+    expect(validatePdfInspection(asset)).toMatchObject({ valid: true, type: "pdf", pageCount: 2, previewAvailable: true, classification: "mixed", protected: false, processingBoundary: "browser-local" });
+
+    const workflow = createPdfInspectionWorkflow(asset);
+    expect(workflow.processingBoundary).toBe("browser-local");
+    expect(workflow.steps).toEqual([
+      { id: "pdf.inspect", samplePages: 8, textSampleLimit: 2_000 },
+      { id: "pdf.render.preview", pageNumber: 1, renderScale: 1.25 },
+      { id: "validation" },
+    ]);
+  });
+
+  it("keeps parsed PDFs valid when preview rendering is unavailable", () => {
+    const asset = {
+      id: "pdf-no-preview",
+      name: "no-preview.pdf",
+      sizeBytes: 10_000,
+      extension: "pdf",
+      processingBoundary: "browser-local" as const,
+      category: "pdf" as const,
+      mimeType: "application/pdf" as const,
+      pdfVersion: "1.7",
+      pageCount: 1,
+      encrypted: false,
+      passwordProtected: false,
+      textPresence: "unknown" as const,
+      textExtractable: false,
+      classification: "unknown" as const,
+      pageDimensions: null,
+      previewUrl: null,
+      capabilities: { inspect: true as const, renderPreview: true as const },
+      warnings: ["Preview unavailable"],
+    };
+    expect(validatePdfInspection(asset)).toMatchObject({ valid: true, previewAvailable: false, protected: false });
+    expect(validatePdfInspection({ ...asset, passwordProtected: true, classification: "protected" as const })).toMatchObject({ valid: false, protected: true });
   });
 });
 

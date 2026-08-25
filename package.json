@@ -14,12 +14,13 @@
   },
   "dependencies": {
     "@vitejs/plugin-react": "latest",
-    "vite": "latest",
-    "typescript": "latest",
-    "vitest": "latest",
+    "lucide-react": "latest",
+    "pdfjs-dist": "6.2.108",
     "react": "latest",
     "react-dom": "latest",
-    "lucide-react": "latest"
+    "typescript": "latest",
+    "vite": "latest",
+    "vitest": "latest"
   },
   "devDependencies": {
     "@types/react": "latest",

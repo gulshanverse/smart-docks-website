@@ -69,6 +69,7 @@ export async function inspectImageFile(file: File): Promise<FileAsset | FileInta
       width: image.naturalWidth,
       height: image.naturalHeight,
       category: "image",
+      processingBoundary: "browser-local",
       previewUrl,
       capabilities: { compressToTarget: true },
     };

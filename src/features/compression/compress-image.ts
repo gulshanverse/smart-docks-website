@@ -1,5 +1,5 @@
 import { reductionPercent } from "../../lib/file-utils";
-import type { FileAsset } from "../../domain/files/types";
+import type { ImageAsset } from "../../domain/files/types";
 import type { ImageCompressionIntent } from "../../domain/intents/parse-intent";
 import type { ImageDimensions, QualityDecision, ValidationResult, OptimizationStrategy } from "../../domain/workflows/validation";
 import { selectCandidate } from "./select-candidate";
@@ -153,7 +153,7 @@ function extensionForMime(mimeType: string): string {
 }
 
 async function createOutcome(args: {
-  asset: FileAsset;
+  asset: ImageAsset;
   intent: ImageCompressionIntent;
   blob: Blob;
   dimensions: ImageDimensions;
@@ -198,7 +198,7 @@ async function createOutcome(args: {
   };
 }
 
-export async function compressImage(asset: FileAsset, intent: ImageCompressionIntent, onStage: (stage: CompressionStage) => void, options: CompressionOptions = {}): Promise<CompressionOutcome> {
+export async function compressImage(asset: ImageAsset, intent: ImageCompressionIntent, onStage: (stage: CompressionStage) => void, options: CompressionOptions = {}): Promise<CompressionOutcome> {
   const allowResize = options.allowResize ?? true;
   onStage("preparing");
   const sourceImage = await loadImage(asset.previewUrl);

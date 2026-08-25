@@ -212,3 +212,93 @@ textarea:focus { border-color: var(--sd-indigo); box-shadow: 0 0 0 4px rgba(70,8
   html { scroll-behavior: auto; }
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
+
+/* Phase 2A PDF intelligence */
+.pdf-asset-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+  gap: 1rem;
+  align-items: stretch;
+  padding: 0.85rem;
+  border: 1px solid var(--sd-line);
+  border-radius: var(--sd-radius-md);
+  background: rgba(255, 255, 255, 0.58);
+}
+
+.pdf-preview-frame {
+  min-height: 260px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: calc(var(--sd-radius-md) - 4px);
+  background: #e9e6df;
+  border: 1px solid var(--sd-line);
+}
+
+.pdf-preview-frame img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-height: 360px;
+  object-fit: contain;
+}
+
+.pdf-asset-info {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.55rem;
+  padding: 0.3rem 0.15rem;
+  color: var(--sd-muted);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.pdf-asset-info > div:first-child {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  color: var(--sd-ink);
+  font-size: 0.98rem;
+}
+
+.pdf-asset-info small { color: var(--sd-violet); }
+
+.pdf-goal-note {
+  display: grid;
+  gap: 0.25rem;
+  padding: 0.85rem 0.95rem;
+  border: 1px solid rgba(93, 76, 140, 0.18);
+  border-radius: var(--sd-radius-sm);
+  background: rgba(93, 76, 140, 0.07);
+  color: var(--sd-muted);
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.pdf-goal-note strong { color: var(--sd-ink); }
+
+@media (max-width: 760px) {
+  .pdf-asset-card { grid-template-columns: 1fr; }
+  .pdf-preview-frame { min-height: 220px; }
+}
+
+.pdf-details {
+  display: grid;
+  gap: 0.3rem;
+  width: 100%;
+  color: var(--sd-muted);
+  font-size: 0.75rem;
+}
+
+.pdf-details summary {
+  width: fit-content;
+  color: var(--sd-ink);
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.pdf-details span { display: block; }
