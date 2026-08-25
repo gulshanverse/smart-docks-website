@@ -1,6 +1,6 @@
 import type { SupportedImageMimeType, SupportedPdfMimeType } from "../files/types";
 
-export type ToolId = "image.compress.target_size" | "pdf.inspect" | "pdf.render.preview";
+export type ToolId = "image.compress.target_size" | "pdf.inspect" | "pdf.inspect.page" | "pdf.render.preview";
 export type ToolInputCategory = "image" | "pdf";
 
 export interface ToolDefinition {
@@ -33,6 +33,16 @@ export const pdfInspectTool: ToolDefinition = {
   batchSupport: false,
 };
 
+export const pdfPageInspectTool: ToolDefinition = {
+  id: "pdf.inspect.page",
+  inputCategory: "pdf",
+  outputCategory: "pdf",
+  supportedFormats: ["application/pdf"],
+  parameters: ["pageNumber", "textSampleLimit"],
+  processingBoundary: "browser-local",
+  batchSupport: false,
+};
+
 export const pdfPreviewTool: ToolDefinition = {
   id: "pdf.render.preview",
   inputCategory: "pdf",
@@ -43,4 +53,4 @@ export const pdfPreviewTool: ToolDefinition = {
   batchSupport: false,
 };
 
-export const toolRegistry = [imageTargetCompressionTool, pdfInspectTool, pdfPreviewTool] as const;
+export const toolRegistry = [imageTargetCompressionTool, pdfInspectTool, pdfPageInspectTool, pdfPreviewTool] as const;

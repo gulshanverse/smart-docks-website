@@ -8,6 +8,8 @@ import { classifyPdf } from "../domain/pdfs/types";
 import { validatePdfInspection } from "../domain/pdfs/validation";
 import { createPdfInspectionWorkflow } from "../domain/workflows/types";
 import { hasPdfSignature, isPdfWithinLocalInspectionLimit, normalizePageDimensions, readPdfVersion } from "../domain/pdfs/helpers";
+import { createPdfPageAsset, inferPdfPageTypeHint, normalizePdfPageGeometry, normalizePdfPageText, samplePdfPageNumbers } from "../domain/pdfs/pages";
+import { createPdfPageInspectionWorkflow } from "../domain/workflows/types";
 
 describe("byte units", () => {
   it("uses decimal KB and MB values", () => {
@@ -113,6 +115,33 @@ describe("PDF inspection foundation", () => {
       { id: "pdf.inspect", samplePages: 8, textSampleLimit: 2_000 },
       { id: "pdf.render.preview", pageNumber: 1, renderScale: 1.25 },
       { id: "validation" },
+    ]);
+  });
+
+  it("normalizes page geometry and text signals without retaining full text", () => {
+    const geometry = normalizePdfPageGeometry([0, 0, 595.28, 841.89]);
+    expect(geometry).toMatchObject({ orientation: "portrait", paperSizeHint: "A4", millimeterLabel: "210 × 297 mm" });
+    expect(normalizePdfPageGeometry([0, 0, 500, 500]).orientation).toBe("square");
+    expect(normalizePdfPageText(["", " short ", "longer text"])).toEqual({ hasText: true, textCharacterCount: 16 });
+    expect(normalizePdfPageText(["x".repeat(2_500)])).toEqual({ hasText: true, textCharacterCount: 2_000 });
+  });
+
+  it("uses bounded sampling and measured page hints", () => {
+    expect(samplePdfPageNumbers(2)).toEqual([1, 2]);
+    expect(samplePdfPageNumbers(100)).toEqual([1, 2, 50, 99, 100]);
+    expect(samplePdfPageNumbers(0)).toEqual([]);
+    expect(inferPdfPageTypeHint({ hasText: true, textCharacterCount: 30, hasRasterContent: false })).toBe("text");
+    expect(inferPdfPageTypeHint({ hasText: false, textCharacterCount: 0, hasRasterContent: true })).toBe("scanned");
+    expect(inferPdfPageTypeHint({ hasText: true, textCharacterCount: 30, hasRasterContent: true })).toBe("mixed");
+  });
+
+  it("creates an unselected page asset and a browser-local page workflow", () => {
+    const page = createPdfPageAsset(2, normalizePdfPageGeometry([0, 0, 612, 792]), { hasText: true, textCharacterCount: 50, hasRasterContent: false });
+    expect(page).toMatchObject({ pageNumber: 2, orientation: "portrait", paperSizeHint: "Letter", hasText: true, previewState: "idle", thumbnailState: "idle", selected: false });
+    const asset = { id: "pdf-page-test", category: "pdf" as const, name: "fixture.pdf", sizeBytes: 100, extension: "pdf", processingBoundary: "browser-local" as const, mimeType: "application/pdf" as const, pdfVersion: "1.7", pageCount: 4, encrypted: false, passwordProtected: false, textPresence: "detected" as const, textExtractable: true, classification: "mixed" as const, pageDimensions: null, previewUrl: null, capabilities: { inspect: true as const, renderPreview: true as const }, warnings: [] };
+    expect(createPdfPageInspectionWorkflow(asset, 2).steps).toEqual([
+      { id: "pdf.inspect.page", pageNumber: 2, textSampleLimit: 2_000 },
+      { id: "pdf.render.preview", pageNumber: 2, renderScale: 1.25 },
     ]);
   });
 

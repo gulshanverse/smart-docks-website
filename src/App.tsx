@@ -22,6 +22,7 @@ import { validatePdfInspection } from "./domain/pdfs/validation";
 import { compressImage, type CompressionOutcome, type CompressionStage } from "./features/compression/compress-image";
 import { inspectFile } from "./features/intake/inspect-file";
 import { PDFJS_VERSION } from "./features/pdf/config";
+import { PdfPageWorkspace } from "./features/pdf/PdfPageWorkspace";
 import "./styles/tokens.css";
 import "./styles/app.css";
 
@@ -53,6 +54,7 @@ function intakeErrorToNotice(error: FileIntakeError): Notice {
 function App() {
   const inputRef = useRef<HTMLInputElement>(null);
   const assetUrlRef = useRef<string | null>(null);
+  const pdfFileRef = useRef<File | null>(null);
   const resultUrlsRef = useRef<string[]>([]);
   const [asset, setAsset] = useState<FileAsset | null>(null);
   const [pdfValidation, setPdfValidation] = useState<PdfInspectionValidation | null>(null);
@@ -85,6 +87,7 @@ function App() {
   async function handleFile(file: File | undefined) {
     if (!file) return;
     releaseUrls();
+    pdfFileRef.current = null;
     setAsset(null);
     setPdfValidation(null);
     setOutcome(null);
@@ -99,6 +102,7 @@ function App() {
         return;
       }
       assetUrlRef.current = result.previewUrl;
+      pdfFileRef.current = result.category === "pdf" ? file : null;
 
       if (result.category === "pdf") {
         const workflow = createPdfInspectionWorkflow(result);
@@ -183,6 +187,7 @@ function App() {
 
   function reset() {
     releaseUrls();
+    pdfFileRef.current = null;
     setAsset(null);
     setPdfValidation(null);
     setGoal("");
@@ -255,7 +260,7 @@ function App() {
                       <span>{formatBytes(asset.sizeBytes)} · {asset.width} × {asset.height} · {asset.mimeType.replace("image/", "").toUpperCase()}</span>
                       <span className="local-badge"><LockKeyhole size={13} /> Stays in your browser</span>
                     </div>
-                  </div> : <PdfAssetCard asset={asset} validation={pdfValidation} onReset={reset} />
+                  </div> : pdfFileRef.current ? <PdfAssetCard asset={asset} file={pdfFileRef.current} validation={pdfValidation} onReset={reset} /> : null
                 )}
               </div>
 
@@ -293,16 +298,16 @@ function App() {
         </section>
 
         <section id="roadmap" className="roadmap-section" aria-labelledby="roadmap-title">
-          <div className="container roadmap-grid"><div><p className="eyebrow">A measured roadmap</p><h2 id="roadmap-title">Build the foundation<br /><span>before the universe.</span></h2></div>      <div className="roadmap-list"><div className="roadmap-item current"><span className="roadmap-marker" /><div><strong>Smart image optimizer</strong><p>Compression, resize recovery, and verified local results.</p></div><span className="roadmap-state">Now</span></div><div className="roadmap-item current"><span className="roadmap-marker" /><div><strong>PDF inspection foundation</strong><p>Local validation, heuristic classification, and first-page preview.</p></div><span className="roadmap-state">Now</span></div><div className="roadmap-item"><span className="roadmap-marker" /><div><strong>PDF transformations and AI</strong><p>Compression, conversion, OCR, and planning remain future work.</p></div><span className="roadmap-state">Planned</span></div></div></div>
+          <div className="container roadmap-grid"><div><p className="eyebrow">A measured roadmap</p><h2 id="roadmap-title">Build the foundation<br /><span>before the universe.</span></h2></div>      <div className="roadmap-list"><div className="roadmap-item current"><span className="roadmap-marker" /><div><strong>Smart image optimizer</strong><p>Compression, resize recovery, and verified local results.</p></div><span className="roadmap-state">Now</span></div><div className="roadmap-item current"><span className="roadmap-marker" /><div><strong>PDF page workspace</strong><p>Local validation, page intelligence, lazy thumbnails, and selected-page previews.</p></div><span className="roadmap-state">Now</span></div><div className="roadmap-item"><span className="roadmap-marker" /><div><strong>PDF transformations and AI</strong><p>Compression, conversion, OCR, and planning remain future work.</p></div><span className="roadmap-state">Planned</span></div></div></div>
         </section>
       </main>
 
-      <footer className="site-footer"><div className="container footer-inner"><a className="brand footer-brand" href="#top" aria-label="Back to SmartDocs home"><span className="brand-mark" aria-hidden="true"><span /><span /><span /></span><span className="brand-name">SmartDocs</span></a><p>One file + one goal → one verified result.</p><span className="footer-phase">Phase 2A · PDF inspection foundation</span></div></footer>
+      <footer className="site-footer"><div className="container footer-inner"><a className="brand footer-brand" href="#top" aria-label="Back to SmartDocs home"><span className="brand-mark" aria-hidden="true"><span /><span /><span /></span><span className="brand-name">SmartDocs</span></a><p>One file + one goal → one verified result.</p><span className="footer-phase">Phase 2B · PDF page workspace</span></div></footer>
     </div>
   );
 }
 
-function PdfAssetCard({ asset, validation, onReset }: { asset: PdfAsset; validation: PdfInspectionValidation | null; onReset: () => void }) {
+function PdfAssetCard({ asset, file, validation, onReset }: { asset: PdfAsset; file: File; validation: PdfInspectionValidation | null; onReset: () => void }) {
   return <div className="pdf-asset-card" data-testid="pdf-preview-card">
     <div className="pdf-preview-frame">{asset.previewUrl ? <img src={asset.previewUrl} alt={`First-page preview of ${asset.name}`} /> : <span>Preview unavailable</span>}</div>
     <div className="pdf-asset-info">
@@ -316,6 +321,7 @@ function PdfAssetCard({ asset, validation, onReset }: { asset: PdfAsset; validat
       <span className="local-badge"><LockKeyhole size={13} /> PDF inspection is processed locally in your browser</span>
       {asset.warnings.length > 0 ? <small>{asset.warnings[0]}</small> : null}
     </div>
+    <PdfPageWorkspace file={file} asset={asset} />
   </div>;
 }
 

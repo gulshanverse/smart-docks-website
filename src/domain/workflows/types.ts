@@ -1,8 +1,9 @@
 import type { ImageAsset, PdfAsset, ProcessingBoundary } from "../files/types";
+import { FIRST_PAGE_RENDER_SCALE, MAX_PDF_SAMPLE_PAGES, MAX_PDF_TEXT_CHARS } from "../../features/pdf/config";
 import type { ImageCompressionIntent } from "../intents/parse-intent";
 import type { PdfInspectionValidation } from "../pdfs/types";
 
-export type WorkflowStepId = "image.compress.target_size" | "pdf.inspect" | "pdf.render.preview" | "validation";
+export type WorkflowStepId = "image.compress.target_size" | "pdf.inspect" | "pdf.inspect.page" | "pdf.render.preview" | "validation";
 
 export interface ImageCompressionWorkflow {
   input: ImageAsset;
@@ -25,6 +26,16 @@ export interface PdfInspectionWorkflow {
   validation?: PdfInspectionValidation;
 }
 
+export interface PdfPageInspectionWorkflow {
+  input: PdfAsset;
+  pageNumber: number;
+  processingBoundary: "browser-local";
+  steps: readonly [
+    { id: "pdf.inspect.page"; pageNumber: number; textSampleLimit: number },
+    { id: "pdf.render.preview"; pageNumber: number; renderScale: number },
+  ];
+}
+
 export function createImageCompressionWorkflow(input: ImageAsset, intent: ImageCompressionIntent): ImageCompressionWorkflow {
   return {
     input,
@@ -42,9 +53,21 @@ export function createPdfInspectionWorkflow(input: PdfAsset): PdfInspectionWorkf
     input,
     processingBoundary: "browser-local",
     steps: [
-      { id: "pdf.inspect", samplePages: 8, textSampleLimit: 2_000 },
-      { id: "pdf.render.preview", pageNumber: 1, renderScale: 1.25 },
+      { id: "pdf.inspect", samplePages: MAX_PDF_SAMPLE_PAGES, textSampleLimit: MAX_PDF_TEXT_CHARS },
+      { id: "pdf.render.preview", pageNumber: 1, renderScale: FIRST_PAGE_RENDER_SCALE },
       { id: "validation" },
+    ],
+  };
+}
+
+export function createPdfPageInspectionWorkflow(input: PdfAsset, pageNumber: number): PdfPageInspectionWorkflow {
+  return {
+    input,
+    pageNumber,
+    processingBoundary: "browser-local",
+    steps: [
+      { id: "pdf.inspect.page", pageNumber, textSampleLimit: MAX_PDF_TEXT_CHARS },
+      { id: "pdf.render.preview", pageNumber, renderScale: FIRST_PAGE_RENDER_SCALE },
     ],
   };
 }
