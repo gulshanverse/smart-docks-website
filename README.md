@@ -88,6 +88,8 @@ This is a browser-local privacy boundary. It is not a claim about server retenti
 └── docs/
     ├── phase-1-browser-verification.md
     ├── phase-1.5-browser-verification.md
+    ├── phase-2-pdf-architecture.md
+    ├── phase-2-research-notes.md
     ├── repository-audit.md
     └── phase-0.5-final-report.md
 ```
@@ -130,7 +132,7 @@ See [`docs/phase-1.5-browser-verification.md`](docs/phase-1.5-browser-verificati
 
 ## Roadmap
 
-The next phase should be approved before implementation. It may improve measurable image quality heuristics or add a carefully scoped resize policy refinement. PDF workflows, OCR, document conversion, AI-assisted planning, accounts, cloud storage, backend workers, billing, batch processing, audio/video, and other infrastructure remain outside the current scope.
+The Phase 2 PDF architecture spike is documented in [`docs/phase-2-pdf-architecture.md`](docs/phase-2-pdf-architecture.md). It deliberately does not add production PDF features. PDF workflows, OCR, document conversion, AI-assisted planning, accounts, cloud storage, backend workers, billing, batch processing, audio/video, and other infrastructure remain outside the current implementation scope until separately approved.
 
 ## License
 

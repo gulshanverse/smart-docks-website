@@ -1,0 +1,15 @@
+{
+  "file": "mixed-fixture.pdf",
+  "file_size_bytes": 5530,
+  "pdf_version": "1.3",
+  "page_count": 2,
+  "text_presence": true,
+  "text_extractable": true,
+  "classification_hint": "mixed",
+  "rendered_first_page": "rendered-page.png",
+  "tools": [
+    "pdfinfo",
+    "pdftotext",
+    "pdftoppm"
+  ]
+}

@@ -1,0 +1,5 @@
+SmartDocs PDF architecture spike
+This page contains extractable text. The second page is image-only so the fixture can exercise a
+mixed-document inspection path.
+
+
