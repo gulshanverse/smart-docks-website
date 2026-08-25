@@ -12,6 +12,9 @@ import { createPdfPageAsset, inferPdfPageTypeHint, normalizePdfPageGeometry, nor
 import { createPdfPageInspectionWorkflow } from "../domain/workflows/types";
 import { createDeletePlan, createExtractPlan, createReorderPlan, createRotatePlan, normalizeDocumentOrder, normalizeRotation } from "../domain/pdfs/operations";
 import { validatePdfMutationResult } from "../domain/pdfs/mutation-validation";
+import { classifyBlankPage, createBlankDetectionPlan, createBlankRemovalPlan, createImageToPdfPlan, createMergePlan, createPdfImagePlan, createSplitPlan, safeCoreFilename } from "../domain/pdfs/core";
+import { validateCorePdfOutput } from "../domain/pdfs/core-validation";
+import { createPdfCoreWorkflow } from "../domain/workflows/types";
 
 describe("byte units", () => {
   it("uses decimal KB and MB values", () => {
@@ -200,6 +203,48 @@ describe("PDF page operations", () => {
     if (!("plan" in planned)) throw new Error("expected rotate plan");
     expect(planned.plan.operation.parameters.rotationDegrees).toBe(270);
     expect(validatePdfMutationResult({ plan: planned.plan, inputBytes: 1_000, outputBytes: 1_200, pageCount: 4, previewAvailable: true, processingBoundary: "browser-local" })).toMatchObject({ valid: true, expectedPageCount: 4, processingBoundary: "browser-local", warnings: ["Page operations can make a PDF larger; no compression was applied."] });
+  });
+});
+
+describe("PDF core platform plans", () => {
+  it("parses validated split ranges without clamping", () => {
+    expect(createSplitPlan("1-3, 5, 7-8", 8)).toMatchObject({ plan: { expectedOutputPageCounts: [3, 1, 2], ranges: [{ start: 1, end: 3 }, { start: 5, end: 5 }, { start: 7, end: 8 }] } });
+    expect(createSplitPlan("0-2", 8)).toMatchObject({ error: expect.stringContaining("outside") });
+  });
+
+  it("creates merge, render, and image-to-PDF plans", () => {
+    expect(createMergePlan(["a.pdf", "b.pdf"], [2, 3], true)).toMatchObject({ plan: { expectedOutputPageCount: 5, preserveMetadata: true } });
+    expect(createPdfImagePlan([1, 3], 3, "png", "high")).toMatchObject({ plan: { pageNumbers: [1, 3], format: "png", resolution: "high" } });
+    expect(createImageToPdfPlan(["a.png", "b.jpg"])).toMatchObject({ plan: { expectedOutputPageCount: 2, pagePolicy: "fit-centered" } });
+  });
+
+  it("bounds blank-page detection and requires reviewed removal", () => {
+    expect(createBlankDetectionPlan(5)).toMatchObject({ plan: { pageNumbers: [1, 2, 3, 4, 5], coverage: "complete" } });
+    const sampled = createBlankDetectionPlan(100);
+    expect(sampled).toMatchObject({ plan: { coverage: "sampled" } });
+    if (!("plan" in sampled)) throw new Error("expected sampled plan");
+    expect(sampled.plan.pageNumbers.length).toBeLessThanOrEqual(50);
+    expect(createBlankRemovalPlan(5, [4, 2, 2])).toMatchObject({ plan: { confirmedPageNumbers: [2, 4], expectedOutputPageCount: 3, reviewRequired: true } });
+    expect(createBlankRemovalPlan(3, [1, 2, 3])).toMatchObject({ error: expect.stringContaining("retain") });
+  });
+
+  it("keeps blank-page classification conservative and filenames safe", () => {
+    expect(classifyBlankPage({ pageNumber: 4, textCharacterCount: 0, hasRasterContent: false, nonBackgroundRatio: 0 })).toMatchObject({ classification: "likely-blank", confidence: "bounded-heuristic" });
+    expect(classifyBlankPage({ pageNumber: 5, textCharacterCount: 0, hasRasterContent: true, nonBackgroundRatio: 0 })).toMatchObject({ classification: "possibly-blank" });
+    expect(safeCoreFilename("../Quarter 1: report", "split-part-1", "pdf")).toBe("Quarter-1-report-split-part-1.pdf");
+  });
+
+  it("validates core results and exposes a unified workflow", () => {
+    const plan = createMergePlan(["a.pdf", "b.pdf"], [1, 2]);
+    if (!("plan" in plan)) throw new Error("expected merge plan");
+    expect(createPdfCoreWorkflow("merge", plan.plan).steps.map((step) => step.id)).toEqual(["pdf.inspect", "pdf.merge", "validation", "pdf.render.preview"]);
+    const detect = createBlankDetectionPlan(2);
+    if (!("plan" in detect)) throw new Error("expected detection plan");
+    expect(createPdfCoreWorkflow("detect_blank_pages", detect.plan).steps[1]).toMatchObject({ id: "pdf.detect.blank_pages", operation: "detect_blank_pages" });
+    const remove = createBlankRemovalPlan(2, [2]);
+    if (!("plan" in remove)) throw new Error("expected removal plan");
+    expect(createPdfCoreWorkflow("remove_blank_pages", remove.plan).steps[1]).toMatchObject({ id: "pdf.remove.blank_pages", operation: "remove_blank_pages" });
+    expect(validateCorePdfOutput({ operation: "merge", expectedPageCount: 3, actualPageCount: 3, previewAvailable: true, inputBytes: 100, outputBytes: 150, processingBoundary: "browser-local" })).toMatchObject({ valid: true, warnings: ["The generated PDF is larger than the input; no compression was applied."] });
   });
 });
 

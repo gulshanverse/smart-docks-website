@@ -401,7 +401,7 @@ function LazyPageThumbnail({ pageNumber, page, session, selected, onSelect, onTo
     return () => {
       active = false;
     };
-  }, [onPageData, pageNumber, page, selected, session, visible, thumbnail]);
+  }, [onPageData, pageNumber, page, selected, session, visible]);
 
   return <div ref={containerRef} className={`pdf-thumbnail ${selected ? "selected" : ""}`} role="listitem">
     <button type="button" onClick={onSelect} aria-pressed={selected} aria-label={`Preview page ${pageNumber}`} className="pdf-thumbnail-button">

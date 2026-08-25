@@ -2,75 +2,48 @@
 
 ## One file. One clear goal.
 
-SmartDocs is an intent-first workspace for turning a human file goal into a verified result. **Phase 2C extends the first real vertical slice:** browser-local image target-size optimization plus browser-local PDF intake, bounded inspection, heuristic classification, page-by-page intelligence, and validated page operations that create new PDFs without modifying the original.
+SmartDocs is an intent-first browser workspace for turning a human file goal into a verified result. **Phase 2 completes the browser-local PDF core platform** while preserving the existing image target-size optimizer and the Phase 2A–2C PDF foundation.
 
-> No image or PDF is uploaded to a server by the current application. Processing happens locally in the browser.
+> Current document processing reads local `File` objects in the browser. The application does not upload image or PDF bytes to a server, API, cloud processor, database, or storage service.
 
 ## What works now
 
 | Capability | Status |
 |---|---|
 | Vite + React + strict TypeScript application foundation | Implemented |
-| JPEG, PNG, and WebP file picker | Implemented |
-| PDF file picker and keyboard-accessible drag-and-drop intake | Implemented |
-| Keyboard-accessible drag-and-drop intake surface | Implemented |
-| MIME and image-signature checks | Implemented |
-| PDF signature validation and separate 50 MiB browser-local limit | Implemented |
-| PDF version, page count, page dimensions, bounded text, and raster inspection | Implemented |
-| Deterministic text, scanned, mixed, unknown, protected, and invalid PDF states | Implemented |
-| PDF.js first-page preview with Vite worker and object URL cleanup | Implemented |
-| Typed PDF page model with measured geometry, text, and raster signals | Implemented |
-| Lazy browser-local page previews and bounded thumbnail rail | Implemented |
-| Page navigation, selected-page metadata, page hints, and keyboard controls | Implemented |
-| Image preview, filename, dimensions, MIME type, and byte size | Implemented |
-| Deterministic phrases such as “make this image under 100KB” | Implemented |
-| Decimal byte convention: 1 KB = 1,000 bytes; 1 MB = 1,000,000 bytes | Implemented |
-| Extensible tool registry with inspection, preview, delete, extract, reorder, and rotate PDF capabilities | Implemented |
-| Browser-local PDF page deletion, extraction, deterministic reorder, and cumulative 90°/180°/270° rotation | Implemented |
-| pdf-lib 1.17.1 structural authoring with PDF.js re-open and first-page output validation | Implemented |
-| Typed image and PDF workflow models with validation steps | Implemented |
-| Browser-local adaptive encoding and target-size search | Implemented |
-| Deterministic resize recovery when compression alone is not acceptable | Implemented |
-| Original-dimensions control with Allow resizing recovery action | Implemented |
-| Strategy metadata: original-preserved, compression-only, resize-and-compress | Implemented |
-| Output decode validation, target check, dimensions, and reduction metrics | Implemented |
-| Downloadable optimized result and reset workflow | Implemented |
-| Honest no-file, unsupported-format, invalid-image, decode, oversized, ambiguous, and unsupported-goal states | Implemented |
-| PDF compression/optimization, target-size optimization, merge/split, conversion, OCR, AI/LLM, DOCX/XLSX/PPTX, backend, cloud storage, accounts, billing, and batch workflows | Not implemented |
+| JPEG, PNG, and WebP image intake with signature checks | Implemented |
+| PDF intake, signature validation, version/page/dimension inspection, bounded text and raster signals | Implemented |
+| Separate 25 MiB image and 50 MiB PDF browser-local limits | Implemented |
+| PDF.js first-page preview, page workspace, lazy thumbnails, keyboard navigation, page metadata, and page hints | Implemented |
+| Browser-local PDF delete, extract, reorder, and cumulative 90°/180°/270° rotation | Implemented |
+| Merge two or more PDFs with ordered inputs and validated page-count output | Implemented |
+| Split by exact comma-separated page ranges with honest invalid/out-of-range recovery | Implemented |
+| PDF → JPG, PNG, or WebP page rendering with sequential bounded processing | Implemented |
+| JPEG/PNG → PDF with ordered A4 fit-centered pages | Implemented |
+| Conservative blank-page detection, review, and explicit removal | Implemented |
+| Basic best-effort metadata snapshot/preservation for merge only | Implemented with limits |
+| Unified core operation plans, tool registry, workflow steps, and output validation | Implemented |
+| Validated PDF result previews, downloads, continuation into the page workspace, and recoverable originals | Implemented |
+| Image target-size optimization, adaptive encoding, resize recovery, and actual byte/dimension validation | Implemented |
+| PDF compression, target-size PDF optimization, OCR, AI/LLM planning, semantic extraction, backend/cloud processing, accounts, billing, batch queues, and public sharing | Not implemented |
 
-The current workflow does not invent application-specific requirements. For example, “make this suitable for my exam” is not treated as a known target; the user is asked for an exact size instead.
+## PDF core behavior
 
-## How the first workflow works
+The shared Phase 2 panel provides Merge PDFs, Split PDF, PDF → images, Images → PDF, and Blank pages. Merge ordering is controlled by the user. Split ranges are parsed exactly; page numbers are never silently clamped. Multi-page image conversion offers individual real downloads instead of an unimplemented ZIP dependency.
 
-```text
-Image file
-  ↓
-MIME and signature validation
-  ↓
-Local image inspection
-  ↓
-Natural-language target parsing
-  ↓
-Typed workflow plan
-  ↓
-Compression-first candidate search
-  ↓
-Bounded resize recovery when necessary
-  ↓
-Decode, byte, target, and dimension validation
-  ↓
-Preview, metrics, and download
-```
+Blank-page detection measures sampled text, raster operators, and rendered non-background pixel occupancy. It is intentionally conservative. Candidates are shown for review, and removal requires explicit checkbox confirmation. PDFs with more than 50 pages receive a deterministic sample of no more than 50 pages, and the UI states that additional pages require manual review.
 
-The optimizer first tries to **minimize quality loss at the original dimensions**. If compression cannot reach the target at the quality floor, it evaluates a bounded set of dimension scales and selects the smallest necessary reduction that reaches the target. JPEG and WebP use measured quality candidates. PNG transparency is preserved by retaining PNG as a candidate and using WebP only as an alternative format that supports alpha. If the target is not reasonably achievable after the resize policy, the result is labeled as best quality available and explains the tradeoff instead of silently destroying the image.
+WebP is supported for PDF-to-image rendering where browser canvas encoding succeeds. WebP-to-PDF is intentionally not offered because the verified pdf-lib authoring path does not safely embed WebP. Merge may copy basic title, author, subject, creator, producer, and creation date from the first source when requested. Split warns that basic source metadata is not copied. No feature claims universal preservation of forms, annotations, links, bookmarks, embedded files, JavaScript, unusual objects, or all metadata.
 
-If the original image is already under the requested target, SmartDocs preserves the original bytes rather than re-encoding it into a larger file. Result metadata communicates whether the strategy was `original-preserved`, `compression-only`, or `resize-and-compress`. When resizing is used, the result shows original and final dimensions and explains why.
+## Architecture
+
+The domain layer in `src/domain/pdfs/core.ts` owns pure plans, range parsing, safe filenames, blank-page invariants, and metadata snapshot types. `src/domain/tools/registry.ts` exposes only real capabilities. `src/domain/workflows/types.ts` maps each operation to an explicit workflow step, including `pdf.detect.blank_pages` and `pdf.remove.blank_pages`.
+
+PDF.js is the inspection and rendering authority. pdf-lib 1.17.1 is the structural authoring authority for copying pages, creating PDFs, rotations, basic metadata, and embedding JPEG/PNG images. Core services are dynamically imported so merge, split, image authoring, and raster conversion remain lazy. Every generated PDF is reopened with PDF.js before a success state or download link is offered.
 
 ## Privacy and security boundary
 
-The application does not send image or PDF files to an API or cloud storage. It validates image and PDF content signatures, enforces separate 25 MiB image and 50 MiB PDF input limits, bounds PDF page/text inspection, uses browser object URLs for previews, avoids injecting filenames as HTML, and revokes generated object URLs when the workflow is reset or unmounted.
-
-This is a browser-local privacy boundary. It is not a claim about server retention because the current phase has no server processing.
+Processing stays within the browser-local boundary for this phase. The application validates signatures, enforces file limits, rejects protected or unusable PDFs, constructs safe output filenames, avoids filename HTML injection, and revokes generated object URLs and destroys PDF.js sessions during cleanup. This boundary is specific to the current application and is not a promise about an unapproved future server architecture.
 
 ## Repository structure
 
@@ -79,41 +52,23 @@ This is a browser-local privacy boundary. It is not a claim about server retenti
 ├── index.html
 ├── package.json
 ├── pnpm-lock.yaml
-├── tsconfig.json
-├── vite.config.ts
 ├── src/
 │   ├── App.tsx
-│   ├── main.tsx
 │   ├── domain/
 │   │   ├── files/       # typed asset model and intake limits
-│   │   ├── intents/     # deterministic goal parser
-│   │   ├── tools/       # real tool registry
-│   │   ├── pdfs/        # PDF heuristics, page model, operation plans, and validation
-│   │   ├── workflows/   # workflow and validation models
+│   │   ├── intents/     # deterministic image goal parser
+│   │   ├── pdfs/        # inspection, page, core plans, and validation
+│   │   ├── tools/       # actual capability registry
+│   │   └── workflows/   # typed workflow models and steps
 │   ├── features/
-│   │   ├── compression/ # local encoding and candidate selection
-│   │   ├── intake/      # MIME, signature, decode, and metadata inspection
-│   │   └── pdf/         # lazy PDF.js inspection, page workspace, and pdf-lib operations
-│   ├── lib/             # byte, extension, ID, and metric helpers
+│   │   ├── compression/ # local image encoding and candidate selection
+│   │   ├── intake/      # signature, decode, and metadata inspection
+│   │   └── pdf/         # PDF.js workspace, rendering, and pdf-lib authoring
 │   ├── styles/          # design tokens and application styles
-│   └── tests/           # domain and optimizer-selection tests
-└── docs/
-    ├── phase-1-browser-verification.md
-    ├── phase-1.5-browser-verification.md
-    ├── phase-2-pdf-architecture.md
-    ├── phase-2-research-notes.md
-    ├── phase-2a-pdf-implementation.md
-    ├── phase-2a-browser-verification.md
-    ├── phase-2b-pdf-workspace.md
-    ├── phase-2b-browser-verification.md
-    ├── phase-2c-pdf-page-operations.md
-    ├── phase-2c-browser-verification.md
-    ├── phase-2c-library-research.md
-    ├── repository-audit.md
-    └── phase-0.5-final-report.md
+│   └── tests/           # domain and core-plan tests
+├── tests/fixtures/      # deterministic PDF and image fixtures
+└── docs/                # phase architecture, research, and verification records
 ```
-
-The old portfolio-era root `script.js` and `styles.css` files were removed because they are no longer part of the application runtime. The previous portfolio remains recoverable through Git history.
 
 ## Run locally
 
@@ -124,7 +79,7 @@ pnpm install
 pnpm dev
 ```
 
-Open the local URL printed by Vite. The production build can be previewed with:
+The production build can be previewed with:
 
 ```bash
 pnpm build
@@ -133,26 +88,23 @@ pnpm preview
 
 ## Test and quality checks
 
-Run the strict TypeScript check, unit tests, and production build:
-
 ```bash
 pnpm typecheck
 pnpm test
 pnpm build
+git diff --check
 ```
 
-The current automated tests cover decimal KB/MB conversion, human-readable byte formatting, reduction percentages, valid and ambiguous intent parsing, unsupported goals, compression candidate selection for achievable and impossible targets, aspect-ratio-preserving resize dimensions, deterministic quality decisions, PDF signature and version parsing, page-dimension normalization, the independent PDF size gate, bounded classification states, document, page, and mutation workflow steps, page geometry and orientation, paper-size hints, bounded sampling, text-signal normalization, page hints, default selection, selection validation, delete-all rejection, deterministic reorder plans, supported rotation normalization, and validated mutation-result accounting.
+The automated suite covers image intent and candidate behavior, PDF signature and inspection foundations, bounded sampling, page operations, exact split ranges, merge and image-to-PDF plans, safe filenames, conservative blank classification, bounded large-document blank scans, reviewed-removal invariants, unified workflow mappings, and core output validation. The fixture generator is `tests/fixtures/generate_pdf_fixtures.py`.
 
-## Browser verification
+## Verification records
 
-Phase 1.5 was verified with a real 1600 × 1000, 1.6 MB JPEG fixture. The browser accepted `make this image under 50KB`, reported that compression alone was not acceptable, resized to 704 × 440, reached 23.5 KB, verified the output, exposed a real download, and allowed the user to re-run with original dimensions before choosing Allow resizing. The original-under-target behavior and no-file recovery path remain intact.
+The complete Phase 2 architecture and limitation record is in [`docs/phase-2-pdf-core-platform.md`](docs/phase-2-pdf-core-platform.md). Browser, console, network, resource, fixture, and regression evidence is in [`docs/phase-2-final-browser-verification.md`](docs/phase-2-final-browser-verification.md). Earlier foundation records remain available for Phase 2A, 2B, and 2C history.
 
-See [`docs/phase-1.5-browser-verification.md`](docs/phase-1.5-browser-verification.md) for the image verification record, [`docs/phase-2a-browser-verification.md`](docs/phase-2a-browser-verification.md) for document-level PDF verification, [`docs/phase-2b-browser-verification.md`](docs/phase-2b-browser-verification.md) for page-workspace verification, and [`docs/phase-2c-browser-verification.md`](docs/phase-2c-browser-verification.md) for delete, extract, reorder, and rotate verification.
+## Phase 3 boundary
 
-## Roadmap
-
-The Phase 2 PDF architecture spike is documented in [`docs/phase-2-pdf-architecture.md`](docs/phase-2-pdf-architecture.md), the browser-local foundation in [`docs/phase-2a-pdf-implementation.md`](docs/phase-2a-pdf-implementation.md), the page workspace in [`docs/phase-2b-pdf-workspace.md`](docs/phase-2b-pdf-workspace.md), and Phase 2C operations in [`docs/phase-2c-pdf-page-operations.md`](docs/phase-2c-pdf-page-operations.md). PDF compression, exact-size optimization, metadata editing, merge/split, conversion, OCR, AI-assisted planning, accounts, cloud storage, backend workers, billing, batch processing, audio/video, and other infrastructure remain outside the current implementation scope until separately approved.
+Phase 3 was **not started**. The recommended next milestone is **Smart PDF Optimization**, subject to separate approval and explicit requirements for compression, target-size search, quality trade-offs, and preservation policy. OCR, AI/LLM planning, semantic extraction, backend processing, cloud storage, batch execution, and public sharing remain outside this delivery.
 
 ## License
 
-This project is licensed under the MIT License.
+This project is licensed under the MIT License. pdf-lib 1.17.1 is used under its MIT license; the project’s PDF library decision is documented with source links in [`docs/phase-2c-library-research.md`](docs/phase-2c-library-research.md).

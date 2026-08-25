@@ -23,6 +23,7 @@ import { compressImage, type CompressionOutcome, type CompressionStage } from ".
 import { inspectFile } from "./features/intake/inspect-file";
 import { PDFJS_VERSION } from "./features/pdf/config";
 import { PdfPageWorkspace } from "./features/pdf/PdfPageWorkspace";
+import { PdfCoreTools } from "./features/pdf/PdfCoreTools";
 import "./styles/tokens.css";
 import "./styles/app.css";
 
@@ -144,8 +145,8 @@ function App() {
     if (asset.category === "pdf") {
       setNotice({
         title: "PDF inspection is ready.",
-        message: "PDF target-size compression is not available yet.",
-        recovery: "You can review the detected document above. PDF transformations are planned for a later phase.",
+        message: "PDF target-size compression is not available yet, but the PDF core tools are available below.",
+        recovery: "Use the document workspace for page operations, merge, split, conversion, and blank-page review.",
       });
       return;
     }
@@ -279,6 +280,9 @@ function App() {
               </div>
             </div>
 
+            {asset?.category === "pdf" && pdfFileRef.current ? <PdfPageWorkspace file={pdfFileRef.current} asset={asset} /> : null}
+            <PdfCoreTools currentFile={pdfFileRef.current} currentAsset={asset?.category === "pdf" ? asset : null} onContinueResult={(file) => void handleFile(file)} />
+
             {notice ? <div className="notice" role="alert"><div className="notice-icon"><X size={17} /></div><div><strong>{notice.title}</strong><p>{notice.message}</p><span>{notice.recovery}</span></div></div> : null}
             {stage ? <div className="processing-strip" role="status" aria-live="polite"><span className="spinner" /><div><strong>{stageLabels[stage]}</strong><span>Working locally in your browser. No progress percentage is invented.</span></div><ChevronDown size={18} /></div> : null}
 
@@ -298,11 +302,11 @@ function App() {
         </section>
 
         <section id="roadmap" className="roadmap-section" aria-labelledby="roadmap-title">
-          <div className="container roadmap-grid"><div><p className="eyebrow">A measured roadmap</p><h2 id="roadmap-title">Build the foundation<br /><span>before the universe.</span></h2></div>      <div className="roadmap-list"><div className="roadmap-item current"><span className="roadmap-marker" /><div><strong>Smart image optimizer</strong><p>Compression, resize recovery, and verified local results.</p></div><span className="roadmap-state">Now</span></div><div className="roadmap-item current"><span className="roadmap-marker" /><div><strong>PDF page operations</strong><p>Local inspection, selection, deletion, extraction, reordering, rotation, and validated results.</p></div><span className="roadmap-state">Now</span></div><div className="roadmap-item"><span className="roadmap-marker" /><div><strong>PDF transformations and AI</strong><p>Compression, conversion, OCR, and planning remain future work.</p></div><span className="roadmap-state">Planned</span></div></div></div>
+          <div className="container roadmap-grid"><div><p className="eyebrow">A measured roadmap</p><h2 id="roadmap-title">Build the foundation<br /><span>before the universe.</span></h2></div>      <div className="roadmap-list"><div className="roadmap-item current"><span className="roadmap-marker" /><div><strong>Smart image optimizer</strong><p>Compression, resize recovery, and verified local results.</p></div><span className="roadmap-state">Now</span></div><div className="roadmap-item current"><span className="roadmap-marker" /><div><strong>PDF core platform</strong><p>Local page operations, merge, split, conversion, blank-page review, and validated results.</p></div><span className="roadmap-state">Now</span></div><div className="roadmap-item"><span className="roadmap-marker" /><div><strong>PDF transformations and AI</strong><p>Compression, conversion, OCR, and planning remain future work.</p></div><span className="roadmap-state">Planned</span></div></div></div>
         </section>
       </main>
 
-      <footer className="site-footer"><div className="container footer-inner"><a className="brand footer-brand" href="#top" aria-label="Back to SmartDocs home"><span className="brand-mark" aria-hidden="true"><span /><span /><span /></span><span className="brand-name">SmartDocs</span></a><p>One file + one goal → one verified result.</p><span className="footer-phase">Phase 2C · PDF page operations</span></div></footer>
+      <footer className="site-footer"><div className="container footer-inner"><a className="brand footer-brand" href="#top" aria-label="Back to SmartDocs home"><span className="brand-mark" aria-hidden="true"><span /><span /><span /></span><span className="brand-name">SmartDocs</span></a><p>One file + one goal → one verified result.</p><span className="footer-phase">Phase 2 complete · PDF core platform</span></div></footer>
     </div>
   );
 }
@@ -321,7 +325,6 @@ function PdfAssetCard({ asset, file, validation, onReset }: { asset: PdfAsset; f
       <span className="local-badge"><LockKeyhole size={13} /> PDF inspection is processed locally in your browser</span>
       {asset.warnings.length > 0 ? <small>{asset.warnings[0]}</small> : null}
     </div>
-    <PdfPageWorkspace file={file} asset={asset} />
   </div>;
 }
 

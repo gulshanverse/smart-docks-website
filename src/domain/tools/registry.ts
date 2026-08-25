@@ -1,6 +1,6 @@
 import type { SupportedImageMimeType, SupportedPdfMimeType } from "../files/types";
 
-export type ToolId = "image.compress.target_size" | "pdf.inspect" | "pdf.inspect.page" | "pdf.render.preview" | "pdf.delete.pages" | "pdf.extract.pages" | "pdf.reorder.pages" | "pdf.rotate.pages";
+export type ToolId = "image.compress.target_size" | "pdf.inspect" | "pdf.inspect.page" | "pdf.render.preview" | "pdf.delete.pages" | "pdf.extract.pages" | "pdf.reorder.pages" | "pdf.rotate.pages" | "pdf.merge" | "pdf.split" | "pdf.render.images" | "image.create.pdf" | "pdf.detect.blank_pages" | "pdf.remove.blank_pages";
 export type ToolInputCategory = "image" | "pdf";
 
 export interface ToolDefinition {
@@ -83,6 +83,66 @@ export const pdfRotatePagesTool: ToolDefinition = {
   batchSupport: false,
 };
 
+export const pdfMergeTool: ToolDefinition = {
+  id: "pdf.merge",
+  inputCategory: "pdf",
+  outputCategory: "pdf",
+  supportedFormats: ["application/pdf"],
+  parameters: ["orderedInputFiles", "preserveMetadata"],
+  processingBoundary: "browser-local",
+  batchSupport: false,
+};
+
+export const pdfSplitTool: ToolDefinition = {
+  id: "pdf.split",
+  inputCategory: "pdf",
+  outputCategory: "pdf",
+  supportedFormats: ["application/pdf"],
+  parameters: ["pageRanges"],
+  processingBoundary: "browser-local",
+  batchSupport: false,
+};
+
+export const pdfRenderImagesTool: ToolDefinition = {
+  id: "pdf.render.images",
+  inputCategory: "pdf",
+  outputCategory: "image",
+  supportedFormats: ["application/pdf"],
+  parameters: ["pageNumbers", "format", "resolution"],
+  processingBoundary: "browser-local",
+  batchSupport: false,
+};
+
+export const imageCreatePdfTool: ToolDefinition = {
+  id: "image.create.pdf",
+  inputCategory: "image",
+  outputCategory: "pdf",
+  supportedFormats: ["image/jpeg", "image/png"],
+  parameters: ["orderedInputFiles", "pagePolicy"],
+  processingBoundary: "browser-local",
+  batchSupport: false,
+};
+
+export const pdfDetectBlankPagesTool: ToolDefinition = {
+  id: "pdf.detect.blank_pages",
+  inputCategory: "pdf",
+  outputCategory: "pdf",
+  supportedFormats: ["application/pdf"],
+  parameters: ["pageNumbers"],
+  processingBoundary: "browser-local",
+  batchSupport: false,
+};
+
+export const pdfRemoveBlankPagesTool: ToolDefinition = {
+  id: "pdf.remove.blank_pages",
+  inputCategory: "pdf",
+  outputCategory: "pdf",
+  supportedFormats: ["application/pdf"],
+  parameters: ["confirmedPageNumbers"],
+  processingBoundary: "browser-local",
+  batchSupport: false,
+};
+
 export const pdfPreviewTool: ToolDefinition = {
   id: "pdf.render.preview",
   inputCategory: "pdf",
@@ -93,4 +153,4 @@ export const pdfPreviewTool: ToolDefinition = {
   batchSupport: false,
 };
 
-export const toolRegistry = [imageTargetCompressionTool, pdfInspectTool, pdfPageInspectTool, pdfPreviewTool, pdfDeletePagesTool, pdfExtractPagesTool, pdfReorderPagesTool, pdfRotatePagesTool] as const;
+export const toolRegistry = [imageTargetCompressionTool, pdfInspectTool, pdfPageInspectTool, pdfPreviewTool, pdfDeletePagesTool, pdfExtractPagesTool, pdfReorderPagesTool, pdfRotatePagesTool, pdfMergeTool, pdfSplitTool, pdfRenderImagesTool, imageCreatePdfTool, pdfDetectBlankPagesTool, pdfRemoveBlankPagesTool] as const;

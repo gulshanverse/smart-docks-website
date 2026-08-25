@@ -3,8 +3,9 @@ import { FIRST_PAGE_RENDER_SCALE, MAX_PDF_SAMPLE_PAGES, MAX_PDF_TEXT_CHARS } fro
 import type { ImageCompressionIntent } from "../intents/parse-intent";
 import type { PdfInspectionValidation } from "../pdfs/types";
 import type { PdfOperationPlan, PdfOperationType } from "../pdfs/operations";
+import type { ImageToPdfPlan, PdfBlankDetectionPlan, PdfBlankRemovalPlan, PdfImageRenderPlan, PdfMergePlan, PdfSplitPlan, PdfCoreOperation } from "../pdfs/core";
 
-export type WorkflowStepId = "image.compress.target_size" | "pdf.inspect" | "pdf.inspect.page" | "pdf.render.preview" | "pdf.delete.pages" | "pdf.extract.pages" | "pdf.reorder.pages" | "pdf.rotate.pages" | "validation";
+export type WorkflowStepId = "image.compress.target_size" | "pdf.inspect" | "pdf.inspect.page" | "pdf.render.preview" | "pdf.delete.pages" | "pdf.extract.pages" | "pdf.reorder.pages" | "pdf.rotate.pages" | "pdf.merge" | "pdf.split" | "pdf.render.images" | "image.create.pdf" | "pdf.detect.blank_pages" | "pdf.remove.blank_pages" | "validation";
 
 export interface ImageCompressionWorkflow {
   input: ImageAsset;
@@ -37,6 +38,13 @@ export interface PdfMutationWorkflow {
     { id: "pdf.render.preview"; pageNumber: 1; renderScale: number },
     { id: "validation" },
   ];
+}
+
+export interface PdfCoreWorkflow {
+  processingBoundary: "browser-local";
+  operation: PdfCoreOperation;
+  plan: PdfMergePlan | PdfSplitPlan | PdfImageRenderPlan | ImageToPdfPlan | PdfBlankDetectionPlan | PdfBlankRemovalPlan;
+  steps: readonly { id: WorkflowStepId; operation?: PdfCoreOperation }[];
 }
 
 export interface PdfPageInspectionWorkflow {
@@ -86,6 +94,11 @@ export function createPdfMutationWorkflow(input: PdfAsset, plan: PdfOperationPla
       { id: "validation" },
     ],
   };
+}
+
+export function createPdfCoreWorkflow(operation: PdfCoreOperation, plan: PdfMergePlan | PdfSplitPlan | PdfImageRenderPlan | ImageToPdfPlan | PdfBlankDetectionPlan | PdfBlankRemovalPlan): PdfCoreWorkflow {
+  const operationId: WorkflowStepId = operation === "merge" ? "pdf.merge" : operation === "split" ? "pdf.split" : operation === "render_images" ? "pdf.render.images" : operation === "create_pdf" ? "image.create.pdf" : operation === "detect_blank_pages" ? "pdf.detect.blank_pages" : "pdf.remove.blank_pages";
+  return { processingBoundary: "browser-local", operation, plan, steps: [{ id: "pdf.inspect", operation }, { id: operationId, operation }, { id: "validation", operation }, { id: "pdf.render.preview", operation }] };
 }
 
 export function createPdfPageInspectionWorkflow(input: PdfAsset, pageNumber: number): PdfPageInspectionWorkflow {
