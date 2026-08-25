@@ -1,6 +1,6 @@
 import type { SupportedImageMimeType, SupportedPdfMimeType } from "../files/types";
 
-export type ToolId = "image.compress.target_size" | "pdf.inspect" | "pdf.inspect.page" | "pdf.render.preview";
+export type ToolId = "image.compress.target_size" | "pdf.inspect" | "pdf.inspect.page" | "pdf.render.preview" | "pdf.delete.pages" | "pdf.extract.pages" | "pdf.reorder.pages" | "pdf.rotate.pages";
 export type ToolInputCategory = "image" | "pdf";
 
 export interface ToolDefinition {
@@ -43,6 +43,46 @@ export const pdfPageInspectTool: ToolDefinition = {
   batchSupport: false,
 };
 
+export const pdfDeletePagesTool: ToolDefinition = {
+  id: "pdf.delete.pages",
+  inputCategory: "pdf",
+  outputCategory: "pdf",
+  supportedFormats: ["application/pdf"],
+  parameters: ["selectedPageNumbers"],
+  processingBoundary: "browser-local",
+  batchSupport: false,
+};
+
+export const pdfExtractPagesTool: ToolDefinition = {
+  id: "pdf.extract.pages",
+  inputCategory: "pdf",
+  outputCategory: "pdf",
+  supportedFormats: ["application/pdf"],
+  parameters: ["selectedPageNumbers"],
+  processingBoundary: "browser-local",
+  batchSupport: false,
+};
+
+export const pdfReorderPagesTool: ToolDefinition = {
+  id: "pdf.reorder.pages",
+  inputCategory: "pdf",
+  outputCategory: "pdf",
+  supportedFormats: ["application/pdf"],
+  parameters: ["pageOrder"],
+  processingBoundary: "browser-local",
+  batchSupport: false,
+};
+
+export const pdfRotatePagesTool: ToolDefinition = {
+  id: "pdf.rotate.pages",
+  inputCategory: "pdf",
+  outputCategory: "pdf",
+  supportedFormats: ["application/pdf"],
+  parameters: ["selectedPageNumbers", "rotationDegrees"],
+  processingBoundary: "browser-local",
+  batchSupport: false,
+};
+
 export const pdfPreviewTool: ToolDefinition = {
   id: "pdf.render.preview",
   inputCategory: "pdf",
@@ -53,4 +93,4 @@ export const pdfPreviewTool: ToolDefinition = {
   batchSupport: false,
 };
 
-export const toolRegistry = [imageTargetCompressionTool, pdfInspectTool, pdfPageInspectTool, pdfPreviewTool] as const;
+export const toolRegistry = [imageTargetCompressionTool, pdfInspectTool, pdfPageInspectTool, pdfPreviewTool, pdfDeletePagesTool, pdfExtractPagesTool, pdfReorderPagesTool, pdfRotatePagesTool] as const;

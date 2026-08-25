@@ -10,6 +10,8 @@ import { createPdfInspectionWorkflow } from "../domain/workflows/types";
 import { hasPdfSignature, isPdfWithinLocalInspectionLimit, normalizePageDimensions, readPdfVersion } from "../domain/pdfs/helpers";
 import { createPdfPageAsset, inferPdfPageTypeHint, normalizePdfPageGeometry, normalizePdfPageText, samplePdfPageNumbers } from "../domain/pdfs/pages";
 import { createPdfPageInspectionWorkflow } from "../domain/workflows/types";
+import { createDeletePlan, createExtractPlan, createReorderPlan, createRotatePlan, normalizeDocumentOrder, normalizeRotation } from "../domain/pdfs/operations";
+import { validatePdfMutationResult } from "../domain/pdfs/mutation-validation";
 
 describe("byte units", () => {
   it("uses decimal KB and MB values", () => {
@@ -168,6 +170,36 @@ describe("PDF inspection foundation", () => {
     };
     expect(validatePdfInspection(asset)).toMatchObject({ valid: true, previewAvailable: false, protected: false });
     expect(validatePdfInspection({ ...asset, passwordProtected: true, classification: "protected" as const })).toMatchObject({ valid: false, protected: true });
+  });
+});
+
+describe("PDF page operations", () => {
+  it("creates deterministic delete and extract plans", () => {
+    const deleted = createDeletePlan(5, [4, 2, 2]);
+    expect("plan" in deleted && deleted.plan).toMatchObject({ expectedOutputPageCount: 3, selectedPages: [2, 4], expectedPageOrder: [1, 3, 5] });
+    const extracted = createExtractPlan(5, [4, 2, 2]);
+    expect("plan" in extracted && extracted.plan).toMatchObject({ expectedOutputPageCount: 2, selectedPages: [2, 4], expectedPageOrder: [2, 4] });
+  });
+
+  it("rejects invalid selections and deleting every page", () => {
+    expect(createDeletePlan(3, [1, 2, 3])).toMatchObject({ error: { code: "cannot-delete-all-pages" } });
+    expect(createExtractPlan(3, [0])).toMatchObject({ error: { code: "invalid-page-selection" } });
+    expect(createRotatePlan(3, [], 90)).toMatchObject({ error: { code: "no-pages-selected" } });
+  });
+
+  it("normalizes reorder plans and validates page uniqueness", () => {
+    expect(normalizeDocumentOrder([4, 2, 2, 1])).toEqual([1, 2, 4]);
+    expect(createReorderPlan(4, [1, 3, 2, 4])).toMatchObject({ plan: { expectedOutputPageCount: 4, expectedPageOrder: [1, 3, 2, 4] } });
+    expect(createReorderPlan(4, [1, 2, 2, 4])).toMatchObject({ error: { code: "invalid-page-order" } });
+  });
+
+  it("normalizes only supported rotations and validates mutation results", () => {
+    expect(normalizeRotation(90)).toBe(90);
+    expect(normalizeRotation(45)).toBeNull();
+    const planned = createRotatePlan(4, [2, 3], 270);
+    if (!("plan" in planned)) throw new Error("expected rotate plan");
+    expect(planned.plan.operation.parameters.rotationDegrees).toBe(270);
+    expect(validatePdfMutationResult({ plan: planned.plan, inputBytes: 1_000, outputBytes: 1_200, pageCount: 4, previewAvailable: true, processingBoundary: "browser-local" })).toMatchObject({ valid: true, expectedPageCount: 4, processingBoundary: "browser-local", warnings: ["Page operations can make a PDF larger; no compression was applied."] });
   });
 });
 

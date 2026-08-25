@@ -2,7 +2,7 @@
 
 ## One file. One clear goal.
 
-SmartDocs is an intent-first workspace for turning a human file goal into a verified result. **Phase 2B extends the first real vertical slice:** browser-local image target-size optimization plus browser-local PDF intake, bounded inspection, heuristic classification, first-page preview, page-by-page intelligence, and validation.
+SmartDocs is an intent-first workspace for turning a human file goal into a verified result. **Phase 2C extends the first real vertical slice:** browser-local image target-size optimization plus browser-local PDF intake, bounded inspection, heuristic classification, page-by-page intelligence, and validated page operations that create new PDFs without modifying the original.
 
 > No image or PDF is uploaded to a server by the current application. Processing happens locally in the browser.
 
@@ -25,7 +25,9 @@ SmartDocs is an intent-first workspace for turning a human file goal into a veri
 | Image preview, filename, dimensions, MIME type, and byte size | Implemented |
 | Deterministic phrases such as “make this image under 100KB” | Implemented |
 | Decimal byte convention: 1 KB = 1,000 bytes; 1 MB = 1,000,000 bytes | Implemented |
-| Extensible tool registry with `image.compress.target_size`, `pdf.inspect`, `pdf.inspect.page`, and `pdf.render.preview` | Implemented |
+| Extensible tool registry with inspection, preview, delete, extract, reorder, and rotate PDF capabilities | Implemented |
+| Browser-local PDF page deletion, extraction, deterministic reorder, and cumulative 90°/180°/270° rotation | Implemented |
+| pdf-lib 1.17.1 structural authoring with PDF.js re-open and first-page output validation | Implemented |
 | Typed image and PDF workflow models with validation steps | Implemented |
 | Browser-local adaptive encoding and target-size search | Implemented |
 | Deterministic resize recovery when compression alone is not acceptable | Implemented |
@@ -34,7 +36,7 @@ SmartDocs is an intent-first workspace for turning a human file goal into a veri
 | Output decode validation, target check, dimensions, and reduction metrics | Implemented |
 | Downloadable optimized result and reset workflow | Implemented |
 | Honest no-file, unsupported-format, invalid-image, decode, oversized, ambiguous, and unsupported-goal states | Implemented |
-| PDF compression/optimization, editing, merge/split/rotate, conversion, OCR, AI/LLM, DOCX/XLSX/PPTX, backend, cloud storage, accounts, billing, and batch workflows | Not implemented |
+| PDF compression/optimization, target-size optimization, merge/split, conversion, OCR, AI/LLM, DOCX/XLSX/PPTX, backend, cloud storage, accounts, billing, and batch workflows | Not implemented |
 
 The current workflow does not invent application-specific requirements. For example, “make this suitable for my exam” is not treated as a known target; the user is asked for an exact size instead.
 
@@ -86,12 +88,12 @@ This is a browser-local privacy boundary. It is not a claim about server retenti
 │   │   ├── files/       # typed asset model and intake limits
 │   │   ├── intents/     # deterministic goal parser
 │   │   ├── tools/       # real tool registry
-│   │   ├── pdfs/        # PDF heuristics, pure helpers, and validation
+│   │   ├── pdfs/        # PDF heuristics, page model, operation plans, and validation
 │   │   ├── workflows/   # workflow and validation models
 │   ├── features/
 │   │   ├── compression/ # local encoding and candidate selection
 │   │   ├── intake/      # MIME, signature, decode, and metadata inspection
-│   │   └── pdf/         # lazy PDF.js inspection and preview service
+│   │   └── pdf/         # lazy PDF.js inspection, page workspace, and pdf-lib operations
 │   ├── lib/             # byte, extension, ID, and metric helpers
 │   ├── styles/          # design tokens and application styles
 │   └── tests/           # domain and optimizer-selection tests
@@ -104,6 +106,9 @@ This is a browser-local privacy boundary. It is not a claim about server retenti
     ├── phase-2a-browser-verification.md
     ├── phase-2b-pdf-workspace.md
     ├── phase-2b-browser-verification.md
+    ├── phase-2c-pdf-page-operations.md
+    ├── phase-2c-browser-verification.md
+    ├── phase-2c-library-research.md
     ├── repository-audit.md
     └── phase-0.5-final-report.md
 ```
@@ -136,17 +141,17 @@ pnpm test
 pnpm build
 ```
 
-The current automated tests cover decimal KB/MB conversion, human-readable byte formatting, reduction percentages, valid and ambiguous intent parsing, unsupported goals, compression candidate selection for achievable and impossible targets, aspect-ratio-preserving resize dimensions, deterministic quality decisions, PDF signature and version parsing, page-dimension normalization, the independent PDF size gate, bounded classification states, document and page workflow steps, page geometry and orientation, paper-size hints, bounded sampling, text-signal normalization, page hints, default selection, and validation with or without a preview.
+The current automated tests cover decimal KB/MB conversion, human-readable byte formatting, reduction percentages, valid and ambiguous intent parsing, unsupported goals, compression candidate selection for achievable and impossible targets, aspect-ratio-preserving resize dimensions, deterministic quality decisions, PDF signature and version parsing, page-dimension normalization, the independent PDF size gate, bounded classification states, document, page, and mutation workflow steps, page geometry and orientation, paper-size hints, bounded sampling, text-signal normalization, page hints, default selection, selection validation, delete-all rejection, deterministic reorder plans, supported rotation normalization, and validated mutation-result accounting.
 
 ## Browser verification
 
 Phase 1.5 was verified with a real 1600 × 1000, 1.6 MB JPEG fixture. The browser accepted `make this image under 50KB`, reported that compression alone was not acceptable, resized to 704 × 440, reached 23.5 KB, verified the output, exposed a real download, and allowed the user to re-run with original dimensions before choosing Allow resizing. The original-under-target behavior and no-file recovery path remain intact.
 
-See [`docs/phase-1.5-browser-verification.md`](docs/phase-1.5-browser-verification.md) for the image verification record, [`docs/phase-2a-browser-verification.md`](docs/phase-2a-browser-verification.md) for document-level PDF verification, and [`docs/phase-2b-browser-verification.md`](docs/phase-2b-browser-verification.md) for page-workspace verification.
+See [`docs/phase-1.5-browser-verification.md`](docs/phase-1.5-browser-verification.md) for the image verification record, [`docs/phase-2a-browser-verification.md`](docs/phase-2a-browser-verification.md) for document-level PDF verification, [`docs/phase-2b-browser-verification.md`](docs/phase-2b-browser-verification.md) for page-workspace verification, and [`docs/phase-2c-browser-verification.md`](docs/phase-2c-browser-verification.md) for delete, extract, reorder, and rotate verification.
 
 ## Roadmap
 
-The Phase 2 PDF architecture spike is documented in [`docs/phase-2-pdf-architecture.md`](docs/phase-2-pdf-architecture.md), the browser-local foundation in [`docs/phase-2a-pdf-implementation.md`](docs/phase-2a-pdf-implementation.md), and the page workspace in [`docs/phase-2b-pdf-workspace.md`](docs/phase-2b-pdf-workspace.md). PDF transformation, OCR, document conversion, AI-assisted planning, accounts, cloud storage, backend workers, billing, batch processing, audio/video, and other infrastructure remain outside the current implementation scope until separately approved.
+The Phase 2 PDF architecture spike is documented in [`docs/phase-2-pdf-architecture.md`](docs/phase-2-pdf-architecture.md), the browser-local foundation in [`docs/phase-2a-pdf-implementation.md`](docs/phase-2a-pdf-implementation.md), the page workspace in [`docs/phase-2b-pdf-workspace.md`](docs/phase-2b-pdf-workspace.md), and Phase 2C operations in [`docs/phase-2c-pdf-page-operations.md`](docs/phase-2c-pdf-page-operations.md). PDF compression, exact-size optimization, metadata editing, merge/split, conversion, OCR, AI-assisted planning, accounts, cloud storage, backend workers, billing, batch processing, audio/video, and other infrastructure remain outside the current implementation scope until separately approved.
 
 ## License
 

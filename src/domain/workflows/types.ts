@@ -2,8 +2,9 @@ import type { ImageAsset, PdfAsset, ProcessingBoundary } from "../files/types";
 import { FIRST_PAGE_RENDER_SCALE, MAX_PDF_SAMPLE_PAGES, MAX_PDF_TEXT_CHARS } from "../../features/pdf/config";
 import type { ImageCompressionIntent } from "../intents/parse-intent";
 import type { PdfInspectionValidation } from "../pdfs/types";
+import type { PdfOperationPlan, PdfOperationType } from "../pdfs/operations";
 
-export type WorkflowStepId = "image.compress.target_size" | "pdf.inspect" | "pdf.inspect.page" | "pdf.render.preview" | "validation";
+export type WorkflowStepId = "image.compress.target_size" | "pdf.inspect" | "pdf.inspect.page" | "pdf.render.preview" | "pdf.delete.pages" | "pdf.extract.pages" | "pdf.reorder.pages" | "pdf.rotate.pages" | "validation";
 
 export interface ImageCompressionWorkflow {
   input: ImageAsset;
@@ -24,6 +25,18 @@ export interface PdfInspectionWorkflow {
     { id: "validation" },
   ];
   validation?: PdfInspectionValidation;
+}
+
+export interface PdfMutationWorkflow {
+  input: PdfAsset;
+  plan: PdfOperationPlan;
+  processingBoundary: "browser-local";
+  steps: readonly [
+    { id: "pdf.inspect" },
+    { id: "pdf.delete.pages" | "pdf.extract.pages" | "pdf.reorder.pages" | "pdf.rotate.pages"; operation: PdfOperationType },
+    { id: "pdf.render.preview"; pageNumber: 1; renderScale: number },
+    { id: "validation" },
+  ];
 }
 
 export interface PdfPageInspectionWorkflow {
@@ -54,6 +67,21 @@ export function createPdfInspectionWorkflow(input: PdfAsset): PdfInspectionWorkf
     processingBoundary: "browser-local",
     steps: [
       { id: "pdf.inspect", samplePages: MAX_PDF_SAMPLE_PAGES, textSampleLimit: MAX_PDF_TEXT_CHARS },
+      { id: "pdf.render.preview", pageNumber: 1, renderScale: FIRST_PAGE_RENDER_SCALE },
+      { id: "validation" },
+    ],
+  };
+}
+
+export function createPdfMutationWorkflow(input: PdfAsset, plan: PdfOperationPlan): PdfMutationWorkflow {
+  const operationId = `pdf.${plan.operation.type.replace("_pages", ".pages")}` as "pdf.delete.pages" | "pdf.extract.pages" | "pdf.reorder.pages" | "pdf.rotate.pages";
+  return {
+    input,
+    plan,
+    processingBoundary: "browser-local",
+    steps: [
+      { id: "pdf.inspect" },
+      { id: operationId, operation: plan.operation.type },
       { id: "pdf.render.preview", pageNumber: 1, renderScale: FIRST_PAGE_RENDER_SCALE },
       { id: "validation" },
     ],

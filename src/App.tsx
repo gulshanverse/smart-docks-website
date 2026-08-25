@@ -268,7 +268,7 @@ function App() {
                 <div className="card-label"><span className="label-icon violet"><WandSparkles size={15} /></span> 02 · Describe the goal</div>
                 <label htmlFor="goal-input" className="goal-label">What should happen to this file?</label>
                 <textarea id="goal-input" value={goal} onChange={(event) => handleGoalChange(event.target.value)} placeholder={asset?.category === "pdf" ? "e.g. make this PDF under 2MB" : "e.g. make this image under 100KB"} rows={3} data-testid="goal-input" />
-                {asset?.category === "pdf" ? <div className="pdf-goal-note" role="status"><strong>PDF transformations are not available yet.</strong><span>Inspection is ready; compression and conversion will come in a later phase.</span></div> : <>
+                {asset?.category === "pdf" ? <div className="pdf-goal-note" role="status"><strong>PDF page operations are available.</strong><span>Select pages above to delete, extract, reorder, or rotate them into a new validated PDF. Compression and conversion remain unavailable.</span></div> : <>
                   <div className="example-row" aria-label="Goal examples">
                     {examples.map((example) => <button key={example} type="button" onClick={() => handleGoalChange(example)}>{example}</button>)}
                   </div>
@@ -298,11 +298,11 @@ function App() {
         </section>
 
         <section id="roadmap" className="roadmap-section" aria-labelledby="roadmap-title">
-          <div className="container roadmap-grid"><div><p className="eyebrow">A measured roadmap</p><h2 id="roadmap-title">Build the foundation<br /><span>before the universe.</span></h2></div>      <div className="roadmap-list"><div className="roadmap-item current"><span className="roadmap-marker" /><div><strong>Smart image optimizer</strong><p>Compression, resize recovery, and verified local results.</p></div><span className="roadmap-state">Now</span></div><div className="roadmap-item current"><span className="roadmap-marker" /><div><strong>PDF page workspace</strong><p>Local validation, page intelligence, lazy thumbnails, and selected-page previews.</p></div><span className="roadmap-state">Now</span></div><div className="roadmap-item"><span className="roadmap-marker" /><div><strong>PDF transformations and AI</strong><p>Compression, conversion, OCR, and planning remain future work.</p></div><span className="roadmap-state">Planned</span></div></div></div>
+          <div className="container roadmap-grid"><div><p className="eyebrow">A measured roadmap</p><h2 id="roadmap-title">Build the foundation<br /><span>before the universe.</span></h2></div>      <div className="roadmap-list"><div className="roadmap-item current"><span className="roadmap-marker" /><div><strong>Smart image optimizer</strong><p>Compression, resize recovery, and verified local results.</p></div><span className="roadmap-state">Now</span></div><div className="roadmap-item current"><span className="roadmap-marker" /><div><strong>PDF page operations</strong><p>Local inspection, selection, deletion, extraction, reordering, rotation, and validated results.</p></div><span className="roadmap-state">Now</span></div><div className="roadmap-item"><span className="roadmap-marker" /><div><strong>PDF transformations and AI</strong><p>Compression, conversion, OCR, and planning remain future work.</p></div><span className="roadmap-state">Planned</span></div></div></div>
         </section>
       </main>
 
-      <footer className="site-footer"><div className="container footer-inner"><a className="brand footer-brand" href="#top" aria-label="Back to SmartDocs home"><span className="brand-mark" aria-hidden="true"><span /><span /><span /></span><span className="brand-name">SmartDocs</span></a><p>One file + one goal → one verified result.</p><span className="footer-phase">Phase 2B · PDF page workspace</span></div></footer>
+      <footer className="site-footer"><div className="container footer-inner"><a className="brand footer-brand" href="#top" aria-label="Back to SmartDocs home"><span className="brand-mark" aria-hidden="true"><span /><span /><span /></span><span className="brand-name">SmartDocs</span></a><p>One file + one goal → one verified result.</p><span className="footer-phase">Phase 2C · PDF page operations</span></div></footer>
     </div>
   );
 }

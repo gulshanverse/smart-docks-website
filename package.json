@@ -15,6 +15,7 @@
   "dependencies": {
     "@vitejs/plugin-react": "latest",
     "lucide-react": "latest",
+    "pdf-lib": "1.17.1",
     "pdfjs-dist": "6.2.108",
     "react": "latest",
     "react-dom": "latest",
