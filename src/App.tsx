@@ -34,6 +34,7 @@ import { WorkflowWorkspace } from "./features/workflows/WorkflowWorkspace";
 import { runBoundedScheduler, type WorkflowPlan } from "./domain/workflows/orchestration";
 import { ExtractionWorkspace } from "./features/extraction/ExtractionWorkspace";
 import { AutomationWorkspace } from "./features/automation/AutomationWorkspace";
+import { ProjectsWorkspace } from "./features/projects/ProjectsWorkspace";
 import "./styles/tokens.css";
 import "./styles/app.css";
 
@@ -374,6 +375,7 @@ function App() {
               </div>
             </div>
 
+            <ProjectsWorkspace asset={asset} currentFile={currentFileRef.current} />
             <WorkflowWorkspace asset={asset} documents={[]} onGoalChange={handleGoalChange} onExecute={executeOrchestratedWorkflow} />
             <ExtractionWorkspace asset={asset} onNavigateToPage={navigateToPdfPage} />
             <AutomationWorkspace asset={asset} onExecute={executeOrchestratedWorkflow} />

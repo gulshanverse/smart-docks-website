@@ -61,6 +61,9 @@ import { AUTOMATION_CONTRACT_VERSION, AUTOMATION_LIMITS } from "../domain/automa
 import { buildEvidenceGraph } from "../domain/automation/evidence";
 import { buildFinalDeliverable, buildPackageManifest, buildQualityGates, canRetryStep, createAuditEvent, createAutomationSession, createCheckpoint, restoreCheckpoint, retryPolicyForStep, validateCheckpoint } from "../domain/automation/engine";
 import { reconcileExtractionRecords } from "../domain/automation/reconciliation";
+import { PROJECT_CONTRACT_VERSION, PROJECT_LIMITS, validateProjectDocumentTransition, validateProjectTransition } from "../domain/projects/types";
+import { createProject, deleteProject, exportProject, importProjectMetadata, listProjectDocuments, saveDocumentToProject, validateImportPackage } from "../domain/projects/store";
+import { createIndexedDbStorage } from "../features/storage/indexeddb";
 
 describe("byte units", () => {
   it("uses decimal KB and MB values", () => {
@@ -917,6 +920,54 @@ describe("Phase 13 structured extraction", () => {
     expect(aiPlan.extraction.requiresAi).toBe(true);
     expect(aiPlan.workflow.processingBoundary).toBe("browser-local-to-ai-gateway");
     expect(aiPlan.workflow.requiresConfirmation).toBe(true);
+  });
+});
+
+describe("Phase 15 persistent project workspace", () => {
+  it("validates project and document lifecycle transitions", () => {
+    expect(PROJECT_CONTRACT_VERSION).toBe("phase15-project-v1");
+    expect(validateProjectTransition("ACTIVE", "ARCHIVED")).toBe(true);
+    expect(validateProjectTransition("ACTIVE", "DELETED")).toBe(false);
+    expect(validateProjectDocumentTransition("TEMPORARY", "SAVED")).toBe(true);
+    expect(validateProjectDocumentTransition("READY", "DELETED")).toBe(true);
+    expect(validateProjectDocumentTransition("DELETED", "READY")).toBe(false);
+  });
+
+  it("provides async bounded storage CRUD with a memory fallback", async () => {
+    const storage = createIndexedDbStorage();
+    await storage.create("settings", "phase15-test", { version: PROJECT_CONTRACT_VERSION, localOnly: true });
+    expect((await storage.read<{ version: string }>("settings", "phase15-test"))?.value.version).toBe(PROJECT_CONTRACT_VERSION);
+    expect((await storage.list("settings")).length).toBeGreaterThan(0);
+    await storage.delete("settings", "phase15-test");
+    expect(await storage.read("settings", "phase15-test")).toBeNull();
+  });
+
+  it("rejects unsafe or oversized project imports and keeps valid imports local-only", async () => {
+    expect(validateImportPackage({ version: "wrong", includedBytes: true }).valid).toBe(false);
+    const project = await createProject("Import source");
+    const pack = await exportProject(project, "metadata");
+    const checked = validateImportPackage(pack);
+    expect(checked.valid).toBe(true);
+    const imported = await importProjectMetadata(pack);
+    expect(imported.settings.aiEnabled).toBe(false);
+    expect(imported.projectId).not.toBe(project.projectId);
+  });
+
+  it("saves explicit document bytes while keeping temporary intake separate", async () => {
+    const project = await createProject("Phase 15 test project", "Local test");
+    const bytes = new ArrayBuffer(4);
+    const asset = { id: "project-asset", name: "project.png", sizeBytes: 4, extension: "png", processingBoundary: "browser-local" as const, category: "image" as const, mimeType: "image/png" as const, width: 1, height: 1, previewUrl: "blob:test", capabilities: { compressToTarget: true as const } };
+    const saved = await saveDocumentToProject(project, asset, bytes);
+    expect(saved.document.status).toBe("READY");
+    expect(saved.version.isOriginal).toBe(true);
+    expect(saved.project.storageUsageBytes).toBe(4);
+    expect((await listProjectDocuments(project.projectId)).length).toBe(1);
+    const metadata = await exportProject(saved.project, "metadata");
+    expect(metadata.includedBytes).toBe(false);
+    expect(metadata.documents[0]?.originalVersionId).toBe(saved.version.versionId);
+    const deleted = await deleteProject(saved.project);
+    expect(deleted.status).toBe("DELETED");
+    expect(PROJECT_LIMITS.maxDocumentsPerProject).toBe(12);
   });
 });
 
