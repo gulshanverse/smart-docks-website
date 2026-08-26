@@ -1,4 +1,5 @@
 import type { PdfAsset, PdfClassification, ProcessingBoundary } from "../files/types";
+import type { DocumentIntelligenceSnapshot, PdfAdvancedOptimizationPlan, PdfDocumentAnalysis } from "./document-analysis";
 
 export const PDF_OPTIMIZATION_BOUNDARY: ProcessingBoundary = "browser-local";
 export const MAX_OPTIMIZATION_CANDIDATES = 5;
@@ -36,6 +37,8 @@ export interface PdfOptimizationAnalysis {
   optimizationOpportunities: Array<"image-quality" | "image-resolution" | "structural-preservation" | "metadata-cleanup" | "none">;
   warnings: string[];
   processingBoundary: ProcessingBoundary;
+  documentAnalysis?: PdfDocumentAnalysis;
+  advancedPlan?: PdfAdvancedOptimizationPlan;
 }
 
 export interface PdfOptimizationCandidateSpec {
@@ -63,6 +66,8 @@ export interface PdfOptimizationPlan {
   preserveTextAndVector: boolean;
   candidates: PdfOptimizationCandidateSpec[];
   processingBoundary: ProcessingBoundary;
+  documentAnalysis?: PdfDocumentAnalysis;
+  advancedPlan?: PdfAdvancedOptimizationPlan;
 }
 
 export interface PdfOptimizationCandidateResult {
@@ -74,6 +79,9 @@ export interface PdfOptimizationCandidateResult {
   previewAvailable: boolean;
   targetAchieved: boolean;
   warnings: string[];
+  preservationStatus?: "preservation-safe" | "preservation-warning" | "preservation-blocked";
+  featureChanges?: Array<{ feature: string; before: string; after: string; status: "preserved" | "changed" | "unknown" | "blocked" }>;
+  preservationWarnings?: string[];
 }
 
 export interface PdfOptimizationResult {
@@ -94,6 +102,16 @@ export interface PdfOptimizationResult {
   analysis: PdfOptimizationAnalysis;
   candidateCount: number;
   message: string;
+  preservationStatus?: "preservation-safe" | "preservation-warning" | "preservation-blocked";
+  preservationWarnings?: string[];
+  featureChanges?: Array<{ feature: string; before: string; after: string; status: "preserved" | "changed" | "unknown" | "blocked" }>;
+  pageCountBefore?: number;
+  pageCountAfter?: number;
+  textStatus?: "preserved" | "changed" | "unknown";
+  linkStatus?: "preserved" | "changed" | "unknown";
+  formStatus?: "preserved" | "changed" | "unknown";
+  bookmarkStatus?: "preserved" | "changed" | "unknown";
+  metadataStatus?: "preserved" | "removed" | "changed" | "unknown";
 }
 
 export interface PdfOptimizationProgress {
@@ -150,17 +168,42 @@ export function selectBestPdfCandidate(candidates: readonly PdfOptimizationCandi
   })[0] ?? null;
 }
 
-export function buildPdfOptimizationResult(args: { inputBytes: number; targetBytes: number | null; pageCount: number; candidate: PdfOptimizationCandidateResult; analysis: PdfOptimizationAnalysis; filename: string; candidateCount: number }): PdfOptimizationResult {
-  const { inputBytes, targetBytes, pageCount, candidate, analysis, filename, candidateCount } = args;
+export function buildPdfOptimizationResult(args: { inputBytes: number; targetBytes: number | null; pageCount: number; candidate: PdfOptimizationCandidateResult; analysis: PdfOptimizationAnalysis; filename: string; candidateCount: number; additionalWarnings?: string[] }): PdfOptimizationResult {
+  const { inputBytes, targetBytes, pageCount, candidate, analysis, filename, candidateCount, additionalWarnings = [] } = args;
   const targetAchieved = targetBytes === null ? null : candidate.outputBytes <= targetBytes;
   const bestEffort = targetBytes !== null && !targetAchieved;
-  const warnings = [...candidate.warnings, ...analysis.warnings];
+  const warnings = [...candidate.warnings, ...additionalWarnings, ...analysis.warnings];
+  if (analysis.advancedPlan?.expectedRisks.status !== "preservation-safe") warnings.push(...(analysis.advancedPlan?.expectedRisks.reasons ?? []));
   if (bestEffort) warnings.push("The target could not be reached within the deterministic quality floor; the best available validated result is shown.");
   if (candidate.outputBytes >= inputBytes && candidate.candidate.strategy !== "original-preserved") warnings.push("The attempted optimization did not reduce the measured byte size; consider preserving the original.");
   const strategy = candidate.candidate.strategy;
   const qualityDecision = targetBytes !== null && !targetAchieved ? "best-effort" : candidate.candidate.qualityDecision;
   const message = targetBytes === null ? (strategy === "original-preserved" || strategy === "conservative-preservation" ? "No safe destructive PDF optimization was applied; text and vector content remain preserved." : "PDF optimization completed and was independently validated.") : targetAchieved ? `Target achieved: ${inputBytes.toLocaleString()} bytes → ${candidate.outputBytes.toLocaleString()} bytes.` : `Target could not be reached without severe quality loss. Best available: ${candidate.outputBytes.toLocaleString()} bytes.`;
-  return { inputBytes, outputBytes: candidate.outputBytes, targetBytes, reductionBytes: Math.max(0, inputBytes - candidate.outputBytes), reductionPercentage: reductionPercentage(inputBytes, candidate.outputBytes), pageCount, strategy, qualityDecision, targetAchieved, bestEffort, warnings, processingBoundary: PDF_OPTIMIZATION_BOUNDARY, validationStatus: "validated", filename, analysis, candidateCount, message };
+  const featureChanges = candidate.featureChanges ?? [];
+  const findFeature = (...names: string[]) => featureChanges.find((change) => names.includes(change.feature));
+  const statusFromChange = (change: typeof featureChanges[number] | undefined): "preserved" | "changed" | "unknown" => change?.status === "preserved" ? "preserved" : change?.status === "unknown" ? "unknown" : change ? "changed" : "unknown";
+  const textChange = findFeature("searchable text");
+  const linkChange = findFeature("links");
+  const formChange = findFeature("form fields", "forms");
+  const bookmarkChange = findFeature("bookmarks");
+  const metadataChange = findFeature("metadata");
+  const metadataStatus = metadataChange?.before === "detected" && metadataChange.after !== "detected" ? "removed" : statusFromChange(metadataChange);
+  return { inputBytes, outputBytes: candidate.outputBytes, targetBytes, reductionBytes: Math.max(0, inputBytes - candidate.outputBytes), reductionPercentage: reductionPercentage(inputBytes, candidate.outputBytes), pageCount, strategy, qualityDecision, targetAchieved, bestEffort, warnings, processingBoundary: PDF_OPTIMIZATION_BOUNDARY, validationStatus: "validated", filename, analysis, candidateCount, message, preservationStatus: candidate.preservationStatus ?? analysis.advancedPlan?.expectedRisks.status, preservationWarnings: candidate.preservationWarnings ?? [], featureChanges, pageCountBefore: pageCount, pageCountAfter: candidate.pageCount, textStatus: statusFromChange(textChange) === "unknown" ? (candidate.textPagesPreserved ? "preserved" : "unknown") : statusFromChange(textChange), linkStatus: statusFromChange(linkChange), formStatus: statusFromChange(formChange), bookmarkStatus: statusFromChange(bookmarkChange), metadataStatus };
+}
+
+export function createDocumentIntelligenceSnapshot(analysis: PdfDocumentAnalysis): DocumentIntelligenceSnapshot {
+  return {
+    identity: { fileName: analysis.fileName, fileSizeBytes: analysis.fileSizeBytes, pdfVersion: analysis.pdfVersion, processingBoundary: "browser-local" },
+    classification: { value: analysis.classification, confidence: analysis.classification === "unknown" ? "unknown" : "heuristic" },
+    pages: { exactPageCount: analysis.pageCount, sampledPageCount: analysis.pagesAnalyzed, roles: analysis.pages.map((page) => ({ pageNumber: page.pageNumber, role: page.role, confidence: page.roleConfidence })) },
+    textSignals: { status: analysis.textPresence, sampledPages: analysis.text.sampledPages.length, boundedCharacterCount: analysis.text.boundedCharacterCount },
+    layoutSignals: { textDensity: analysis.layout.textDensity, lineDensity: analysis.layout.lineDensity, blockDensity: analysis.layout.blockDensity, imageDensity: analysis.layout.imageDensity },
+    mediaSignals: { rasterPageCount: analysis.images.rasterPageCount, highResolutionPageCount: analysis.images.highResolutionPageCount, imageSignalCount: analysis.images.imageSignals.length },
+    featureSignals: { text: analysis.features.text, links: analysis.features.links, forms: analysis.features.forms, annotations: analysis.features.annotations, bookmarks: analysis.features.bookmarks, embeddedFiles: analysis.features.embeddedFiles, javascript: analysis.features.javascript, metadata: analysis.features.metadata },
+    ocrReadiness: analysis.ocrReadiness,
+    structureSignals: { groups: analysis.structure.pageGroups.map((group) => ({ startPage: group.startPage, endPage: group.endPage, role: group.role })) },
+    optimizationSignals: { opportunities: analysis.optimizationOpportunities, riskLevel: analysis.preservationRisk.level, recommendation: analysis.recommendation },
+  };
 }
 
 export function optimizationAnalysisFromAsset(asset: PdfAsset): PdfOptimizationAnalysis {

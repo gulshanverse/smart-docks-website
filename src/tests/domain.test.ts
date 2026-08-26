@@ -14,8 +14,10 @@ import { createDeletePlan, createExtractPlan, createReorderPlan, createRotatePla
 import { validatePdfMutationResult } from "../domain/pdfs/mutation-validation";
 import { classifyBlankPage, createBlankDetectionPlan, createBlankRemovalPlan, createImageToPdfPlan, createMergePlan, createPdfImagePlan, createSplitPlan, safeCoreFilename } from "../domain/pdfs/core";
 import { validateCorePdfOutput } from "../domain/pdfs/core-validation";
-import { createPdfCoreWorkflow, createPdfOptimizationWorkflow } from "../domain/workflows/types";
-import { buildPdfOptimizationResult, createPdfOptimizationPlan, generateCandidateSpecs, qualityPolicy, selectBestPdfCandidate, type PdfOptimizationAnalysis } from "../domain/pdfs/optimization";
+import { createPdfAdvancedAnalysisWorkflow, createPdfCoreWorkflow, createPdfOptimizationWorkflow } from "../domain/workflows/types";
+import { buildPdfOptimizationResult, createDocumentIntelligenceSnapshot, createPdfOptimizationPlan, generateCandidateSpecs, qualityPolicy, selectBestPdfCandidate, type PdfOptimizationAnalysis } from "../domain/pdfs/optimization";
+import { buildAdvancedOptimizationPlan, deriveOcrReadiness, derivePageRole, derivePreservationRisk, type PdfDocumentAnalysis, type PdfFeatureSignals } from "../domain/pdfs/document-analysis";
+import { comparePdfDocumentFeatures } from "../domain/pdfs/preservation";
 
 describe("byte units", () => {
   it("uses decimal KB and MB values", () => {
@@ -319,6 +321,70 @@ describe("PDF optimization engine", () => {
     expect(bestEffort.targetAchieved).toBe(false);
     expect(bestEffort.bestEffort).toBe(true);
     expect(bestEffort.message).toContain("could not be reached");
+  });
+});
+
+describe("Phase 4 PDF document intelligence", () => {
+  const featureSignals: PdfFeatureSignals = { text: "detected", rasterImages: "not-detected", vectorDrawing: "detected", annotations: "not-detected", links: "not-detected", forms: "not-detected", bookmarks: "unknown", embeddedFiles: "unknown", javascript: "not-detected", encryption: "not-detected", pageLabels: "not-detected", rotation: "not-detected", metadata: "detected", annotationCount: 0, linkCount: 0, formFieldCount: 0, bookmarkCount: null, embeddedFileCount: null, pageLabelCount: null };
+  const analysisFixture = (overrides: Partial<PdfDocumentAnalysis> = {}): PdfDocumentAnalysis => ({ fileName: "fixture.pdf", fileSizeBytes: 10_000, pdfVersion: "1.7", pageCount: 2, classification: "text", textPresence: "detected", textPageCount: 2, rasterPageCount: 0, vectorSignals: "detected", pageDimensions: [{ pageNumber: 1, widthPoints: 595, heightPoints: 842, rotation: 0 }, { pageNumber: 2, widthPoints: 595, heightPoints: 842, rotation: 0 }], pages: [{ pageNumber: 1, widthPoints: 595, heightPoints: 842, rotation: 0, orientation: "portrait", textPresence: "detected", characterCount: 500, rasterSignals: 0, vectorSignals: 4, annotationCount: 0, linkCount: 0, formFieldCount: 0, imageHeavy: false, role: "text-heavy", roleConfidence: "likely", ocrReadiness: "ocr-probably-unnecessary" }, { pageNumber: 2, widthPoints: 595, heightPoints: 842, rotation: 0, orientation: "portrait", textPresence: "detected", characterCount: 400, rasterSignals: 0, vectorSignals: 4, annotationCount: 0, linkCount: 0, formFieldCount: 0, imageHeavy: false, role: "text-heavy", roleConfidence: "likely", ocrReadiness: "ocr-probably-unnecessary" }], features: featureSignals, metadata: { status: "detected", title: { status: "detected", value: "Fixture" }, author: { status: "not-detected", value: null }, subject: { status: "not-detected", value: null }, keywords: { status: "not-detected", value: null }, creator: { status: "detected", value: "FPDF" }, producer: { status: "detected", value: "FPDF" }, creationDate: { status: "not-detected", value: null }, modificationDate: { status: "not-detected", value: null }, presentFieldCount: 3 }, images: { status: "not-detected", sampledPages: [1, 2], rasterPageCount: 0, highResolutionPageCount: 0, imageSignals: [], estimatedImageBytes: null, note: "bounded" }, fonts: { status: "detected", count: 2, embedded: "unknown", subset: "unknown", categories: [], note: "bounded" }, text: { status: "detected", sampledPages: [1, 2], pagesWithText: 2, boundedCharacterCount: 900, textPages: [], note: "bounded" }, layout: { textDensity: 0.001, lineDensity: 0.0001, blockDensity: 0.0001, imageDensity: 0, whitespace: "unknown", repeatedHeaderFooter: "unknown", note: "bounded" }, structure: { pageGroups: [{ startPage: 1, endPage: 2, role: "text-heavy", confidence: "likely" }], sampledPageCount: 2, exactPageCount: 2, note: "bounded" }, ocrReadiness: "ocr-probably-unnecessary", preservationRisk: { level: "medium", status: "preservation-warning", reasons: ["Text/vector content must remain searchable and is preserved by default."], blockedOperations: ["full-page-rasterization"] }, optimizationOpportunities: ["safe-structural-preservation"], recommendation: "Preserve structure", insights: ["Searchable text was detected."], warnings: [], sampledPages: [1, 2], pagesAnalyzed: 2, processingBoundary: "browser-local", ...overrides });
+
+  it("derives conservative page roles and OCR readiness", () => {
+    expect(derivePageRole({ pageNumber: 1, characterCount: 0, rasterSignals: 2, annotationCount: 0, formFieldCount: 0, imageHeavy: true }, 3)).toMatchObject({ role: "cover" });
+    expect(derivePageRole({ pageNumber: 2, characterCount: 0, rasterSignals: 2, annotationCount: 0, formFieldCount: 0, imageHeavy: true }, 3)).toMatchObject({ role: "scan" });
+    expect(deriveOcrReadiness("not-detected", 2, 0)).toBe("ocr-likely-useful");
+    expect(deriveOcrReadiness("detected", 0, 200)).toBe("ocr-probably-unnecessary");
+  });
+
+  it("derives preservation risk and blocks destructive paths for forms", () => {
+    const risk = derivePreservationRisk({ classification: "text", vectorSignals: "detected", features: { forms: "detected", links: "detected", annotations: "detected", bookmarks: "unknown", embeddedFiles: "unknown", javascript: "not-detected", encryption: "not-detected" } });
+    expect(risk).toMatchObject({ level: "high", status: "preservation-warning", blockedOperations: ["full-page-rasterization"] });
+    const basePlan = createPdfOptimizationPlan({ inputBytes: 10_000, pageCount: 2, classification: "text" }, { operation: "pdf.optimize.target_size", targetBytes: 5_000, targetLabel: "5 KB", mode: "balanced", sourceType: "pdf" });
+    if (!("plan" in basePlan)) throw new Error("expected plan");
+    const advanced = buildAdvancedOptimizationPlan(analysisFixture(), { operation: "pdf.optimize.target_size", targetBytes: 5_000, targetLabel: "5 KB", mode: "balanced", sourceType: "pdf" }, basePlan.plan);
+    expect(advanced.strategy).toBe("preserve-structure");
+    expect(advanced.validationRequirements).toContain("feature-preservation");
+  });
+
+  it("compares feature signals and reports critical loss", () => {
+    const before = analysisFixture({ features: { ...featureSignals, links: "detected", linkCount: 2 } });
+    const after = analysisFixture({ features: { ...featureSignals, links: "not-detected", linkCount: 0 } });
+    const comparison = comparePdfDocumentFeatures(before, after);
+    expect(comparison.valid).toBe(false);
+    expect(comparison.status).toBe("preservation-blocked");
+    expect(comparison.criticalFailures.join(" ")).toContain("links");
+  });
+
+  it("creates a bounded serializable intelligence snapshot", () => {
+    const snapshot = createDocumentIntelligenceSnapshot(analysisFixture());
+    expect(snapshot.identity.processingBoundary).toBe("browser-local");
+    expect(snapshot.pages).toMatchObject({ exactPageCount: 2, sampledPageCount: 2 });
+    expect(snapshot.featureSignals).toMatchObject({ text: "detected", forms: "not-detected" });
+    expect(JSON.stringify(snapshot)).not.toContain("textPages");
+  });
+
+  it("maps preservation statuses and warnings into the final result", () => {
+    const candidate = generateCandidateSpecs("text", "balanced", true)[0];
+    const featureChanges = [
+      { feature: "searchable text", before: "detected", after: "detected", status: "preserved" as const },
+      { feature: "links", before: "detected", after: "detected", status: "preserved" as const },
+      { feature: "form fields", before: "unknown", after: "unknown", status: "unknown" as const },
+      { feature: "bookmarks", before: "unknown", after: "unknown", status: "unknown" as const },
+      { feature: "metadata", before: "detected", after: "not-detected", status: "changed" as const },
+    ];
+    const result = buildPdfOptimizationResult({ inputBytes: 1_000, targetBytes: null, pageCount: 2, candidate: { candidate, valid: true, outputBytes: 1_000, pageCount: 2, textPagesPreserved: true, previewAvailable: true, targetAchieved: false, warnings: [], preservationStatus: "preservation-warning", preservationWarnings: ["A bounded preservation warning"], featureChanges }, analysis: { inputBytes: 1_000, pageCount: 2, pdfVersion: "1.7", classification: "text", textPresent: true, rasterPresent: false, imageHeavy: false, sampledPages: [1, 2], pagesAnalyzed: 2, textPages: 2, rasterPages: 0, imageHeavyPages: 0, sampledPagePixels: [], optimizationOpportunities: ["structural-preservation"], warnings: [], processingBoundary: "browser-local" }, filename: "fixture-optimized.pdf", candidateCount: 1 });
+    expect(result.textStatus).toBe("preserved");
+    expect(result.linkStatus).toBe("preserved");
+    expect(result.formStatus).toBe("unknown");
+    expect(result.bookmarkStatus).toBe("unknown");
+    expect(result.metadataStatus).toBe("removed");
+    expect(result.preservationWarnings).toEqual(["A bounded preservation warning"]);
+  });
+
+  it("maps the advanced analysis workflow to bounded inspection steps", () => {
+    const snapshot = createDocumentIntelligenceSnapshot(analysisFixture());
+    const workflow = createPdfAdvancedAnalysisWorkflow({} as Parameters<typeof createPdfAdvancedAnalysisWorkflow>[0], analysisFixture(), snapshot);
+    expect(workflow.processingBoundary).toBe("browser-local");
+    expect(workflow.steps.map((step) => step.id)).toEqual(["pdf.inspect", "pdf.analyze.advanced", "pdf.extract.bounded_text", "pdf.analyze.layout", "pdf.analyze.structure", "pdf.analyze.ocr_readiness", "intelligence.snapshot", "validation"]);
   });
 });
 

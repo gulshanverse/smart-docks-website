@@ -5,8 +5,9 @@ import type { PdfInspectionValidation } from "../pdfs/types";
 import type { PdfOperationPlan, PdfOperationType } from "../pdfs/operations";
 import type { ImageToPdfPlan, PdfBlankDetectionPlan, PdfBlankRemovalPlan, PdfImageRenderPlan, PdfMergePlan, PdfSplitPlan, PdfCoreOperation } from "../pdfs/core";
 import type { PdfOptimizationIntent, PdfOptimizationPlan } from "../pdfs/optimization";
+import type { DocumentIntelligenceSnapshot, PdfAdvancedOptimizationPlan, PdfDocumentAnalysis } from "../pdfs/document-analysis";
 
-export type WorkflowStepId = "image.compress.target_size" | "pdf.inspect" | "pdf.inspect.page" | "pdf.render.preview" | "pdf.delete.pages" | "pdf.extract.pages" | "pdf.reorder.pages" | "pdf.rotate.pages" | "pdf.merge" | "pdf.split" | "pdf.render.images" | "image.create.pdf" | "pdf.detect.blank_pages" | "pdf.remove.blank_pages" | "pdf.analyze.optimization" | "pdf.optimize.target_size" | "validation";
+export type WorkflowStepId = "image.compress.target_size" | "pdf.inspect" | "pdf.inspect.page" | "pdf.render.preview" | "pdf.delete.pages" | "pdf.extract.pages" | "pdf.reorder.pages" | "pdf.rotate.pages" | "pdf.merge" | "pdf.split" | "pdf.render.images" | "image.create.pdf" | "pdf.detect.blank_pages" | "pdf.remove.blank_pages" | "pdf.analyze.optimization" | "pdf.optimize.target_size" | "pdf.analyze.advanced" | "pdf.analyze.features" | "pdf.analyze.structure" | "pdf.extract.bounded_text" | "pdf.analyze.layout" | "pdf.analyze.ocr_readiness" | "pdf.plan.optimization" | "pdf.generate.candidates" | "pdf.validate.preservation" | "pdf.compare" | "intelligence.snapshot" | "validation";
 
 export interface ImageCompressionWorkflow {
   input: ImageAsset;
@@ -45,14 +46,17 @@ export interface PdfOptimizationWorkflow {
   input: PdfAsset;
   intent: PdfOptimizationIntent;
   plan: PdfOptimizationPlan;
+  advancedPlan?: PdfAdvancedOptimizationPlan;
   processingBoundary: "browser-local";
-  steps: readonly [
-    { id: "pdf.inspect" },
-    { id: "pdf.analyze.optimization" },
-    { id: "pdf.optimize.target_size" },
-    { id: "validation" },
-    { id: "pdf.render.preview"; pageNumber: 1; renderScale: number },
-  ];
+  steps: readonly { id: WorkflowStepId; operation?: string; pageNumber?: number; renderScale?: number }[];
+}
+
+export interface PdfAdvancedAnalysisWorkflow {
+  input: PdfAsset;
+  analysis: PdfDocumentAnalysis;
+  intelligenceSnapshot: DocumentIntelligenceSnapshot;
+  processingBoundary: "browser-local";
+  steps: readonly { id: WorkflowStepId; operation?: string }[];
 }
 
 export interface PdfCoreWorkflow {
@@ -111,18 +115,49 @@ export function createPdfMutationWorkflow(input: PdfAsset, plan: PdfOperationPla
   };
 }
 
-export function createPdfOptimizationWorkflow(input: PdfAsset, intent: PdfOptimizationIntent, plan: PdfOptimizationPlan): PdfOptimizationWorkflow {
+export function createPdfOptimizationWorkflow(input: PdfAsset, intent: PdfOptimizationIntent, plan: PdfOptimizationPlan, advancedPlan?: PdfAdvancedOptimizationPlan): PdfOptimizationWorkflow {
   return {
     input,
     intent,
     plan,
+    advancedPlan,
     processingBoundary: "browser-local",
-    steps: [
+    steps: advancedPlan ? [
+      { id: "pdf.inspect" },
+      { id: "pdf.analyze.features" },
+      { id: "pdf.analyze.structure" },
+      { id: "pdf.analyze.optimization" },
+      { id: "pdf.plan.optimization" },
+      { id: "pdf.generate.candidates" },
+      { id: "pdf.validate.preservation" },
+      { id: "pdf.compare" },
+      { id: "validation" },
+      { id: "pdf.render.preview", pageNumber: 1, renderScale: FIRST_PAGE_RENDER_SCALE },
+    ] : [
       { id: "pdf.inspect" },
       { id: "pdf.analyze.optimization" },
       { id: "pdf.optimize.target_size" },
       { id: "validation" },
       { id: "pdf.render.preview", pageNumber: 1, renderScale: FIRST_PAGE_RENDER_SCALE },
+    ],
+  };
+}
+
+export function createPdfAdvancedAnalysisWorkflow(input: PdfAsset, analysis: PdfDocumentAnalysis, intelligenceSnapshot: DocumentIntelligenceSnapshot): PdfAdvancedAnalysisWorkflow {
+  return {
+    input,
+    analysis,
+    intelligenceSnapshot,
+    processingBoundary: "browser-local",
+    steps: [
+      { id: "pdf.inspect" },
+      { id: "pdf.analyze.advanced" },
+      { id: "pdf.extract.bounded_text" },
+      { id: "pdf.analyze.layout" },
+      { id: "pdf.analyze.structure" },
+      { id: "pdf.analyze.ocr_readiness" },
+      { id: "intelligence.snapshot" },
+      { id: "validation" },
     ],
   };
 }

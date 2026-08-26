@@ -2,7 +2,7 @@
 
 ## One file. One clear goal.
 
-SmartDocs is an intent-first, browser-local workspace for turning a human image or PDF goal into a measured and verified result. **Phase 3 adds Smart PDF Optimization** on top of the completed Phase 2 PDF core platform while preserving the existing image target-size optimizer.
+SmartDocs is an intent-first, browser-local workspace for turning a human image or PDF goal into a measured and verified result. **Phase 4 adds a bounded advanced PDF intelligence foundation** on top of the completed Phase 1–3 image, PDF core, and Smart PDF Optimization flows.
 
 > Document bytes remain in local browser memory. SmartDocs does not upload image or PDF data to a server, API, cloud processor, database, analytics service, or remote storage service.
 
@@ -29,7 +29,10 @@ SmartDocs is an intent-first, browser-local workspace for turning a human image 
 | Scanned/image-heavy PDF quality-mode optimization with actual JPEG candidate measurement | Implemented |
 | Mixed PDF hybrid path preserving detectable text pages and optimizing eligible raster-only pages | Implemented with limits |
 | Exact PDF target-size parsing, target-achieved, best-effort, original-preserved, and cancellation states | Implemented |
-| OCR, AI/LLM planning, semantic extraction, translation, universal object-level PDF compression, backend/cloud processing, accounts, billing, batch queues, and public sharing | Not implemented |
+| Bounded advanced PDF analysis: page roles, layout/structure hints, text samples/blocks, raster/vector/font signals, metadata, links, annotations, forms, bookmarks, embedded files, JavaScript signals, and page labels | Implemented with explicit Unknown states and sampling limits |
+| OCR readiness assessment without an OCR engine, plus bounded serializable document-intelligence snapshots that exclude document text content | Implemented |
+| Preservation-risk planning, destructive-path blocking, candidate re-analysis, and source-versus-candidate feature comparison | Implemented |
+| OCR engines, AI/LLM planning, semantic extraction, translation, universal object-level PDF compression, backend/cloud processing, accounts, billing, batch queues, and public sharing | Not implemented |
 
 ## Smart PDF Optimization
 
@@ -41,6 +44,14 @@ The target is a hard byte constraint. SmartDocs shows **Target achieved** only w
 
 The result comparison shows original and optimized first-page previews, byte sizes, reduction percentage, page count, target state, strategy, quality decision, candidate count, warnings, a real download, and `Continue editing this PDF`. After chaining, `Return to original PDF` remains available at the application level.
 
+## Phase 4 advanced PDF document intelligence
+
+Phase 4 adds a **bounded, deterministic inspection layer** rather than an AI or OCR engine. The browser opens the source with PDF.js, samples no more than the existing bounded page limit, and records compact signals for page geometry, text presence, bounded text blocks and samples, raster/vector operator hints, font-use hints, image/high-resolution hints, layout density, likely page roles, and document-level metadata and catalog features. Large documents report the exact page count while making the sampled-page boundary explicit.
+
+The analysis service uses PDF.js catalog and page APIs for metadata, outlines, attachments, JavaScript-action signals, page labels, mark information, and annotations. A `null`, failed, or unavailable signal is represented as **Unknown** rather than treated as absence. PDF JavaScript is never executed. The generated intelligence snapshot retains identity, counts, roles, densities, feature statuses, OCR readiness, structure groups, recommendations, and risk level; it deliberately excludes full text, text samples, and text blocks.
+
+Before a candidate can be selected, the candidate is reopened with PDF.js and re-analyzed. Changes to page count, detected searchable text, annotations, links, form fields, bookmarks, or embedded files make the candidate invalid. If all generated candidates fail, the original bytes are independently reopened and retained as the safe fallback. Destructive rasterization is blocked when the preservation plan cannot justify it. This is a preservation policy and validation layer, not universal object-level PDF rewriting; unsupported or weakly measurable features remain unchanged or cause a conservative fallback.
+
 ## PDF core behavior
 
 The Phase 2 tools remain available beside optimization: ordered merge, exact-range split, PDF-to-image rendering, JPEG/PNG-to-PDF authoring, page delete/extract/reorder/rotate, and conservative blank-page review/removal. Split ranges are parsed exactly and are never silently clamped. Multi-page image conversion offers individual real downloads rather than an unimplemented ZIP dependency.
@@ -51,13 +62,13 @@ WebP is supported for PDF-to-image rendering where browser canvas encoding succe
 
 ## Architecture
 
-The domain layer in `src/domain/pdfs/optimization.ts` owns optimization intent-independent policies, analysis/result types, candidate generation, target-aware ranking, reduction measurements, quality decisions, and best-effort result construction. `src/domain/intents/parse-intent.ts` owns deterministic image and PDF target-language parsing. `src/domain/tools/registry.ts` exposes only actual capabilities. `src/domain/workflows/types.ts` maps optimization to explicit inspection, analysis, optimization, validation, and preview steps.
+The domain layer in `src/domain/pdfs/document-analysis.ts` owns bounded Phase 4 document-analysis contracts, page-role/OCR-readiness heuristics, preservation-risk derivation, insights, advanced plans, and intelligence snapshots. `src/domain/pdfs/preservation.ts` owns source-versus-candidate feature comparison and critical-loss rejection. `src/domain/pdfs/optimization.ts` owns optimization policies, candidate generation, target-aware ranking, reduction measurements, quality decisions, preservation-aware result construction, and best-effort output. `src/domain/intents/parse-intent.ts` owns deterministic image and PDF target-language parsing. `src/domain/tools/registry.ts` exposes only actual capabilities. `src/domain/workflows/types.ts` maps advanced analysis and optimization to explicit bounded inspection, structure, planning, candidate, preservation-validation, comparison, and preview steps.
 
 PDF.js is the inspection and rendering authority. pdf-lib `1.17.1` is the structural authoring authority for copying pages, creating PDFs, setting supported basic metadata, and embedding JPEG/PNG data. Heavy optimization UI and services are lazy-loaded so the initial app bundle remains lean. Each generated PDF is reopened through PDF.js before success or download is offered.
 
 ## Privacy, security, and resource boundary
 
-The application validates file signatures, enforces local file-size and page limits, rejects protected or unusable PDFs, constructs safe filenames, avoids filename HTML injection, and keeps all document processing in the browser. PDF.js tasks are destroyed and canvases cleared in cleanup blocks. Generated preview and download object URLs are revoked when replaced or unmounted. No remote worker, server queue, database, cloud storage, authentication, billing, or analytics is part of this milestone.
+The application validates file signatures, enforces local file-size and page limits, rejects protected or unusable PDFs, constructs safe filenames, avoids filename HTML injection, and keeps all document processing in the browser. PDF.js tasks are destroyed and canvases cleared in cleanup blocks. Generated preview and download object URLs are revoked when replaced or unmounted. Bounded analysis avoids retaining full text and never executes PDF JavaScript. No remote worker, server queue, database, cloud storage, authentication, billing, or analytics is part of this milestone.
 
 The quality policy is intentionally bounded. The optimizer does not reduce quality indefinitely to satisfy an arbitrary target. High-resolution scanned PDFs can still be CPU- and memory-intensive; users can cancel, and the result warnings explain when a target is not reachable.
 
@@ -109,17 +120,17 @@ pnpm build
 git diff --check
 ```
 
-The automated suite covers byte units, image intent and candidate behavior, PDF signature and inspection foundations, bounded sampling, page operations, exact split ranges, merge and image-to-PDF plans, safe filenames, conservative blank classification, reviewed-removal invariants, unified workflow mappings, target parsing, quality policies, candidate generation/ranking, target-achieved and best-effort result states, and core output validation.
+The automated suite covers byte units, image intent and candidate behavior, PDF signature and inspection foundations, bounded sampling, page operations, exact split ranges, merge and image-to-PDF plans, safe filenames, conservative blank classification, reviewed-removal invariants, unified workflow mappings, target parsing, quality policies, candidate generation/ranking, target-achieved and best-effort result states, core output validation, Phase 4 page roles and OCR readiness, preservation-risk blockers, source-versus-candidate critical-loss comparison, bounded intelligence snapshots, preservation-status mapping, and advanced workflow steps.
 
-The deterministic fixture generator is `tests/fixtures/generate_pdf_fixtures.py`. It produces Phase 2 fixtures plus high-resolution scanned fixtures for measurable Phase 3 compression tests. Existing tracked Phase 2 fixture binaries should not be regenerated casually because PDF metadata identifiers can create unrelated binary churn.
+The deterministic fixture generator is `tests/fixtures/generate_pdf_fixtures.py`. It produces the earlier image/PDF fixtures, high-resolution scanned fixtures for measurable Phase 3 compression tests, and the small `feature-preservation-fixture.pdf` with real metadata, link annotation, and outline-generation signals for Phase 4 checks. Existing tracked fixture binaries should not be regenerated casually because PDF metadata identifiers can create unrelated binary churn.
 
 ## Verification records
 
-The Phase 3 architecture, quality policy, preservation boundary, resource lifecycle, and library references are in [`docs/phase-3-smart-pdf-optimization.md`](docs/phase-3-smart-pdf-optimization.md). The final browser verification record is in [`docs/phase-3-final-browser-verification.md`](docs/phase-3-final-browser-verification.md). Working notes from the local scanned, mixed, text, cancellation, and 100-page checks are in [`docs/phase-3-browser-notes.md`](docs/phase-3-browser-notes.md). Phase 2 history remains in the earlier architecture, research, and verification documents.
+The Phase 3 architecture, quality policy, preservation boundary, resource lifecycle, and library references are in [`docs/phase-3-smart-pdf-optimization.md`](docs/phase-3-smart-pdf-optimization.md). Phase 4 architecture, PDF.js capability boundaries, preservation validation, and security/resource decisions are in [`docs/phase-4-advanced-pdf-engine.md`](docs/phase-4-advanced-pdf-engine.md). Final Phase 4 browser evidence is in [`docs/phase-4-browser-verification.md`](docs/phase-4-browser-verification.md); working notes are in [`docs/phase-4-browser-notes.md`](docs/phase-4-browser-notes.md). Phase 2 history remains in the earlier architecture, research, and verification documents.
 
 ## Roadmap boundary
 
-Phase 3 Smart PDF Optimization is the current milestone. The next recommended milestone is **Phase 4: advanced PDF optimization and document intelligence**, beginning with preservation and compatibility work for forms, annotations, links, bookmarks, fonts, embedded files, and object-level image replacement. OCR, AI/LLM planning, semantic extraction, translation, backend processing, cloud storage, batch execution, public sharing, authentication, billing, and analytics remain outside this delivery.
+Phase 4 advanced PDF intelligence is the current milestone. It establishes bounded signals, preservation-risk planning, and independently validated candidate selection without pretending to provide universal PDF object rewriting. The next recommended work remains separate: OCR engines, AI/LLM planning, semantic extraction, translation, richer PDF editing, backend processing, cloud storage, batch execution, public sharing, authentication, billing, and analytics.
 
 ## License
 

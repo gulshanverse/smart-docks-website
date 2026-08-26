@@ -1,6 +1,6 @@
 import type { SupportedImageMimeType, SupportedPdfMimeType } from "../files/types";
 
-export type ToolId = "image.compress.target_size" | "pdf.inspect" | "pdf.inspect.page" | "pdf.render.preview" | "pdf.delete.pages" | "pdf.extract.pages" | "pdf.reorder.pages" | "pdf.rotate.pages" | "pdf.merge" | "pdf.split" | "pdf.render.images" | "image.create.pdf" | "pdf.detect.blank_pages" | "pdf.remove.blank_pages" | "pdf.analyze.optimization" | "pdf.optimize.target_size";
+export type ToolId = "image.compress.target_size" | "pdf.inspect" | "pdf.inspect.page" | "pdf.render.preview" | "pdf.delete.pages" | "pdf.extract.pages" | "pdf.reorder.pages" | "pdf.rotate.pages" | "pdf.merge" | "pdf.split" | "pdf.render.images" | "image.create.pdf" | "pdf.detect.blank_pages" | "pdf.remove.blank_pages" | "pdf.analyze.optimization" | "pdf.optimize.target_size" | "pdf.analyze.advanced" | "pdf.inspect.images" | "pdf.inspect.fonts" | "pdf.inspect.features" | "pdf.extract.bounded_text" | "pdf.analyze.layout" | "pdf.analyze.ocr_readiness" | "pdf.plan.optimization" | "pdf.generate.candidates" | "pdf.validate.preservation" | "pdf.compare" | "intelligence.snapshot";
 export type ToolInputCategory = "image" | "pdf";
 
 export interface ToolDefinition {
@@ -163,6 +163,19 @@ export const pdfOptimizeTargetSizeTool: ToolDefinition = {
   batchSupport: false,
 };
 
+export const pdfAdvancedAnalyzeTool: ToolDefinition = { id: "pdf.analyze.advanced", inputCategory: "pdf", outputCategory: "pdf", supportedFormats: ["application/pdf"], parameters: ["samplePages", "featureSignals", "preservationRisk", "intelligenceSnapshot"], processingBoundary: "browser-local", batchSupport: false };
+export const pdfImageInspectTool: ToolDefinition = { id: "pdf.inspect.images", inputCategory: "pdf", outputCategory: "pdf", supportedFormats: ["application/pdf"], parameters: ["samplePages", "rasterSignals", "highResolutionPageCount"], processingBoundary: "browser-local", batchSupport: false };
+export const pdfFontInspectTool: ToolDefinition = { id: "pdf.inspect.fonts", inputCategory: "pdf", outputCategory: "pdf", supportedFormats: ["application/pdf"], parameters: ["fontCount", "embeddedSignal", "subsetSignal"], processingBoundary: "browser-local", batchSupport: false };
+export const pdfFeatureInspectTool: ToolDefinition = { id: "pdf.inspect.features", inputCategory: "pdf", outputCategory: "pdf", supportedFormats: ["application/pdf"], parameters: ["annotations", "links", "forms", "bookmarks", "embeddedFiles", "javascript", "metadata"], processingBoundary: "browser-local", batchSupport: false };
+export const pdfBoundedTextTool: ToolDefinition = { id: "pdf.extract.bounded_text", inputCategory: "pdf", outputCategory: "pdf", supportedFormats: ["application/pdf"], parameters: ["samplePages", "characterLimit", "blockLimit"], processingBoundary: "browser-local", batchSupport: false };
+export const pdfLayoutAnalyzeTool: ToolDefinition = { id: "pdf.analyze.layout", inputCategory: "pdf", outputCategory: "pdf", supportedFormats: ["application/pdf"], parameters: ["textDensity", "lineDensity", "blockDensity", "imageDensity"], processingBoundary: "browser-local", batchSupport: false };
+export const pdfOcrReadinessTool: ToolDefinition = { id: "pdf.analyze.ocr_readiness", inputCategory: "pdf", outputCategory: "pdf", supportedFormats: ["application/pdf"], parameters: ["pageSignals", "ocrReadiness"], processingBoundary: "browser-local", batchSupport: false };
+export const pdfAdvancedPlanTool: ToolDefinition = { id: "pdf.plan.optimization", inputCategory: "pdf", outputCategory: "pdf", supportedFormats: ["application/pdf"], parameters: ["eligibleOperations", "blockedOperations", "preservationRequirements", "expectedRisks", "validationRequirements"], processingBoundary: "browser-local", batchSupport: false };
+export const pdfCandidateTool: ToolDefinition = { id: "pdf.generate.candidates", inputCategory: "pdf", outputCategory: "pdf", supportedFormats: ["application/pdf"], parameters: ["qualityMode", "boundedCandidateCount", "eligiblePages"], processingBoundary: "browser-local", batchSupport: false };
+export const pdfPreservationValidationTool: ToolDefinition = { id: "pdf.validate.preservation", inputCategory: "pdf", outputCategory: "pdf", supportedFormats: ["application/pdf"], parameters: ["pageCount", "text", "links", "forms", "bookmarks", "metadata", "representativePages"], processingBoundary: "browser-local", batchSupport: false };
+export const pdfCompareTool: ToolDefinition = { id: "pdf.compare", inputCategory: "pdf", outputCategory: "preview", supportedFormats: ["application/pdf"], parameters: ["before", "after", "featureChanges"], processingBoundary: "browser-local", batchSupport: false };
+export const intelligenceSnapshotTool: ToolDefinition = { id: "intelligence.snapshot", inputCategory: "pdf", outputCategory: "pdf", supportedFormats: ["application/pdf"], parameters: ["boundedSerializableAnalysis"], processingBoundary: "browser-local", batchSupport: false };
+
 export const pdfPreviewTool: ToolDefinition = {
   id: "pdf.render.preview",
   inputCategory: "pdf",
@@ -173,4 +186,4 @@ export const pdfPreviewTool: ToolDefinition = {
   batchSupport: false,
 };
 
-export const toolRegistry = [imageTargetCompressionTool, pdfInspectTool, pdfPageInspectTool, pdfPreviewTool, pdfDeletePagesTool, pdfExtractPagesTool, pdfReorderPagesTool, pdfRotatePagesTool, pdfMergeTool, pdfSplitTool, pdfRenderImagesTool, imageCreatePdfTool, pdfDetectBlankPagesTool, pdfRemoveBlankPagesTool, pdfAnalyzeOptimizationTool, pdfOptimizeTargetSizeTool] as const;
+export const toolRegistry = [imageTargetCompressionTool, pdfInspectTool, pdfPageInspectTool, pdfPreviewTool, pdfDeletePagesTool, pdfExtractPagesTool, pdfReorderPagesTool, pdfRotatePagesTool, pdfMergeTool, pdfSplitTool, pdfRenderImagesTool, imageCreatePdfTool, pdfDetectBlankPagesTool, pdfRemoveBlankPagesTool, pdfAnalyzeOptimizationTool, pdfOptimizeTargetSizeTool, pdfAdvancedAnalyzeTool, pdfImageInspectTool, pdfFontInspectTool, pdfFeatureInspectTool, pdfBoundedTextTool, pdfLayoutAnalyzeTool, pdfOcrReadinessTool, pdfAdvancedPlanTool, pdfCandidateTool, pdfPreservationValidationTool, pdfCompareTool, intelligenceSnapshotTool] as const;

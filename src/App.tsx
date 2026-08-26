@@ -246,9 +246,9 @@ function App() {
         <section className="hero-section">
           <div className="container hero-grid">
             <div>
-              <p className="eyebrow"><span className="eyebrow-line" /> First real workflow</p>
+              <p className="eyebrow"><span className="eyebrow-line" /> Verified PDF intelligence</p>
               <h1>One file.<br /><span>One clear goal.</span></h1>
-              <p className="hero-lede">SmartDocs turns a human request into a verified result. Start with a real image or PDF, describe the size you need, and keep the whole workflow in your browser.</p>
+              <p className="hero-lede">SmartDocs turns a human request into a verified result. Start with a real image or PDF, describe the size you need, and let bounded document signals guide a preservation-first workflow entirely in your browser.</p>
               <div className="hero-proof"><span><Check size={14} /> No server upload</span><span><Check size={14} /> Actual byte check</span><span><Check size={14} /> Downloadable result</span></div>
             </div>
             <div className="hero-side-note"><span>01</span><p>Give the work a goal, not a tool name.</p><ArrowRight size={22} /></div>
@@ -319,18 +319,18 @@ function App() {
             <div className="section-heading compact"><div><p className="eyebrow">How it works</p><h2 id="how-title">Simple on the outside.<br /><span>Measured underneath.</span></h2></div></div>
             <div className="steps-grid">
               <article><span>01</span><h3>Understand the request</h3><p>The deterministic parser handles common PDF target-size phrases and converts KB/MB into exact decimal bytes.</p></article>
-              <article><span>02</span><h3>Try the lightest path</h3><p>The browser analyzes the PDF type, preserves text/vector documents, and tests bounded image-quality candidates for scanned content.</p></article>
+              <article><span>02</span><h3>Try the lightest path</h3><p>The browser analyzes bounded document signals, preserves text/vector documents, and tests bounded image-quality candidates only where the preservation policy permits.</p></article>
               <article><span>03</span><h3>Check before delivery</h3><p>The output is decoded again, its bytes and dimensions are verified, and only then is a download offered.</p></article>
             </div>
           </div>
         </section>
 
         <section id="roadmap" className="roadmap-section" aria-labelledby="roadmap-title">
-          <div className="container roadmap-grid"><div><p className="eyebrow">A measured roadmap</p><h2 id="roadmap-title">Build the foundation<br /><span>before the universe.</span></h2></div>      <div className="roadmap-list"><div className="roadmap-item current"><span className="roadmap-marker" /><div><strong>Smart image optimizer</strong><p>Compression, resize recovery, and verified local results.</p></div><span className="roadmap-state">Now</span></div><div className="roadmap-item current"><span className="roadmap-marker" /><div><strong>PDF core platform</strong><p>Local page operations, merge, split, conversion, blank-page review, and validated results.</p></div><span className="roadmap-state">Done</span></div><div className="roadmap-item current"><span className="roadmap-marker" /><div><strong>Smart PDF optimization</strong><p>Target-size compression for scanned/image-heavy PDFs with quality modes, validation, progress, and recovery.</p></div><span className="roadmap-state">Now</span></div><div className="roadmap-item"><span className="roadmap-marker" /><div><strong>OCR, AI, and advanced PDF editing</strong><p>OCR, semantic extraction, translation, backend processing, and richer document editing remain future work.</p></div><span className="roadmap-state">Planned</span></div></div></div>
+          <div className="container roadmap-grid"><div><p className="eyebrow">A measured roadmap</p><h2 id="roadmap-title">Build the foundation<br /><span>before the universe.</span></h2></div>      <div className="roadmap-list"><div className="roadmap-item"><span className="roadmap-marker" /><div><strong>Smart image optimizer</strong><p>Compression, resize recovery, and verified local results.</p></div><span className="roadmap-state">Done</span></div><div className="roadmap-item"><span className="roadmap-marker" /><div><strong>PDF core platform</strong><p>Local page operations, merge, split, conversion, blank-page review, and validated results.</p></div><span className="roadmap-state">Done</span></div><div className="roadmap-item"><span className="roadmap-marker" /><div><strong>Smart PDF optimization</strong><p>Target-size compression for scanned/image-heavy PDFs with quality modes, validation, progress, and recovery.</p></div><span className="roadmap-state">Done</span></div><div className="roadmap-item current"><span className="roadmap-marker" /><div><strong>Advanced PDF intelligence foundation</strong><p>Bounded document signals, likely structure, OCR readiness analysis, preservation-risk planning, and independently validated candidates.</p></div><span className="roadmap-state">Now</span></div><div className="roadmap-item"><span className="roadmap-marker" /><div><strong>OCR, AI, and advanced PDF editing</strong><p>OCR engines, semantic extraction, translation, backend processing, and richer document editing remain future work.</p></div><span className="roadmap-state">Planned</span></div></div></div>
         </section>
       </main>
 
-      <footer className="site-footer"><div className="container footer-inner"><a className="brand footer-brand" href="#top" aria-label="Back to SmartDocs home"><span className="brand-mark" aria-hidden="true"><span /><span /><span /></span><span className="brand-name">SmartDocs</span></a><p>One file + one goal → one verified result.</p><span className="footer-phase">Phase 3 · Smart PDF optimization</span></div></footer>
+      <footer className="site-footer"><div className="container footer-inner"><a className="brand footer-brand" href="#top" aria-label="Back to SmartDocs home"><span className="brand-mark" aria-hidden="true"><span /><span /><span /></span><span className="brand-name">SmartDocs</span></a><p>One file + one goal → one verified result.</p><span className="footer-phase">Phase 4 · Advanced PDF intelligence foundation</span></div></footer>
     </div>
   );
 }
