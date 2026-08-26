@@ -46,6 +46,10 @@ import { hasImageSignature, hasPdfSignature as hasConversionPdfSignature, sizeDi
 import type { OfficeAsset } from "../domain/office/types";
 import { planUnifiedWorkflow, availableCapabilities } from "../domain/unified/planner";
 import { canTransition, transitionWorkflowState } from "../domain/unified/state";
+import { evaluateCollectionCompatibility, fingerprintFile, transitionCollectionState } from "../domain/collections/compatibility";
+import { planCollectionWorkflow } from "../domain/collections/planner";
+import type { CollectionDocument } from "../domain/collections/types";
+import { searchCollectionDocuments } from "../features/collections/search-collection";
 
 describe("byte units", () => {
   it("uses decimal KB and MB values", () => {
@@ -741,6 +745,31 @@ describe("Phase 10 unified workspace", () => {
     expect(canTransition("review", "running")).toBe(false);
     expect(() => transitionWorkflowState("cancelled", "completed")).toThrow(/Invalid workflow transition/);
     expect(transitionWorkflowState("review", "awaiting-confirmation")).toBe("awaiting-confirmation");
+  });
+});
+
+describe("Phase 11 collections", () => {
+  const pdfAsset = { id: "pdf-collection", name: "source.pdf", sizeBytes: 2000, extension: "pdf", processingBoundary: "browser-local" as const, category: "pdf" as const, mimeType: "application/pdf" as const, pdfVersion: "1.7", pageCount: 2, encrypted: false, passwordProtected: false, textPresence: "detected" as const, textExtractable: true, classification: "text" as const, pageDimensions: null, previewUrl: null, capabilities: { inspect: true as const, renderPreview: true as const }, warnings: [] };
+  const imageAsset = { id: "image-collection", name: "image.png", sizeBytes: 1000, extension: "png", processingBoundary: "browser-local" as const, category: "image" as const, mimeType: "image/png" as const, width: 100, height: 100, previewUrl: "blob:image", capabilities: { compressToTarget: true as const } };
+  const makeDocument = (documentId: string, asset: typeof pdfAsset | typeof imageAsset): CollectionDocument => ({ documentId, file: new File([documentId], `${documentId}.bin`), originalFile: new File([documentId], `${documentId}.bin`), asset, order: 0, selected: true, duplicateOf: null, fingerprint: `${documentId}|1|1|application/octet-stream` });
+  it("evaluates compatible and incompatible collection operations without silently skipping inputs", () => {
+    const pdfs = [makeDocument("a", pdfAsset), makeDocument("b", pdfAsset)];
+    const images = [makeDocument("i", imageAsset), makeDocument("j", imageAsset)];
+    expect(evaluateCollectionCompatibility(pdfs, "merge-pdfs").supported).toBe(true);
+    expect(evaluateCollectionCompatibility([...pdfs, makeDocument("i", imageAsset)], "merge-pdfs").message).toContain("cannot be processed together");
+    expect(evaluateCollectionCompatibility(images, "image-collection-to-pdf").supported).toBe(true);
+    expect(planCollectionWorkflow("c1", pdfs, "merge these PDFs").steps.map((step) => step.stepId)).toEqual(["collection.inspect", "collection.merge", "collection.validate"]);
+    expect(planCollectionWorkflow("c1", pdfs, "merge these PDFs").executable).toBe(true);
+    expect(planCollectionWorkflow("c1", pdfs, "summarize all documents").executable).toBe(false);
+  });
+  it("bounds plan depth, detects duplicate metadata, and rejects invalid collection transitions", async () => {
+    const duplicateA = new File(["same"], "invoice.pdf", { type: "application/pdf", lastModified: 7 });
+    const duplicateB = new File(["same"], "invoice.pdf", { type: "application/pdf", lastModified: 7 });
+    expect(fingerprintFile(duplicateA)).toBe(fingerprintFile(duplicateB));
+    expect(planCollectionWorkflow("c2", [makeDocument("a", pdfAsset)], "optimize all PDFs under 2MB").steps.length).toBeLessThanOrEqual(8);
+    expect(() => transitionCollectionState("cancelled", "completed")).toThrow(/Invalid collection transition/);
+    expect(transitionCollectionState("review", "queued")).toBe("queued");
+    expect((await searchCollectionDocuments([], "")).message).toContain("Enter a search term");
   });
 });
 
