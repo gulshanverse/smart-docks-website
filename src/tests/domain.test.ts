@@ -18,6 +18,12 @@ import { createPdfAdvancedAnalysisWorkflow, createPdfCoreWorkflow, createPdfOpti
 import { buildPdfOptimizationResult, createDocumentIntelligenceSnapshot, createPdfOptimizationPlan, generateCandidateSpecs, qualityPolicy, selectBestPdfCandidate, type PdfOptimizationAnalysis } from "../domain/pdfs/optimization";
 import { buildAdvancedOptimizationPlan, deriveOcrReadiness, derivePageRole, derivePreservationRisk, type PdfDocumentAnalysis, type PdfFeatureSignals } from "../domain/pdfs/document-analysis";
 import { comparePdfDocumentFeatures } from "../domain/pdfs/preservation";
+import { createOcrPlan, isOcrSearchablePdfEligible } from "../domain/ocr/planning";
+import { extractBoundedOcrText, searchOcrPages } from "../domain/ocr/search";
+import { createDocumentUnderstandingSnapshot, deriveDocumentStructure } from "../domain/ocr/understanding";
+import { validateSearchablePdfCandidate } from "../domain/ocr/validation";
+import { MAX_OCR_PAGES_PER_RUN, type OcrDocumentResult, type OcrPageResult } from "../domain/ocr/types";
+import { createPdfMakeSearchableWorkflow, createPdfOcrInspectionWorkflow, createPdfOcrRecognitionWorkflow, createPdfSearchWorkflow, createPdfStructureWorkflow } from "../domain/workflows/types";
 
 describe("byte units", () => {
   it("uses decimal KB and MB values", () => {
@@ -385,6 +391,54 @@ describe("Phase 4 PDF document intelligence", () => {
     const workflow = createPdfAdvancedAnalysisWorkflow({} as Parameters<typeof createPdfAdvancedAnalysisWorkflow>[0], analysisFixture(), snapshot);
     expect(workflow.processingBoundary).toBe("browser-local");
     expect(workflow.steps.map((step) => step.id)).toEqual(["pdf.inspect", "pdf.analyze.advanced", "pdf.extract.bounded_text", "pdf.analyze.layout", "pdf.analyze.structure", "pdf.analyze.ocr_readiness", "intelligence.snapshot", "validation"]);
+  });
+});
+
+describe("Phase 5 OCR and local understanding", () => {
+  const scannedAnalysis = (overrides: Partial<PdfDocumentAnalysis> = {}): PdfDocumentAnalysis => ({ fileName: "scanned-fixture.pdf", fileSizeBytes: 10_000, pdfVersion: "1.3", pageCount: 2, classification: "scanned", textPresence: "not-detected", textPageCount: 0, rasterPageCount: 2, vectorSignals: "not-detected", pageDimensions: [{ pageNumber: 1, widthPoints: 595, heightPoints: 842, rotation: 0 }, { pageNumber: 2, widthPoints: 595, heightPoints: 842, rotation: 0 }], pages: [{ pageNumber: 1, widthPoints: 595, heightPoints: 842, rotation: 0, orientation: "portrait", textPresence: "not-detected", characterCount: 0, rasterSignals: 2, vectorSignals: 0, annotationCount: 0, linkCount: 0, formFieldCount: 0, imageHeavy: true, role: "scan", roleConfidence: "likely", ocrReadiness: "ocr-likely-useful" }, { pageNumber: 2, widthPoints: 595, heightPoints: 842, rotation: 0, orientation: "portrait", textPresence: "not-detected", characterCount: 0, rasterSignals: 2, vectorSignals: 0, annotationCount: 0, linkCount: 0, formFieldCount: 0, imageHeavy: true, role: "scan", roleConfidence: "likely", ocrReadiness: "ocr-likely-useful" }], features: { text: "not-detected", rasterImages: "detected", vectorDrawing: "not-detected", annotations: "not-detected", links: "not-detected", forms: "not-detected", bookmarks: "unknown", embeddedFiles: "unknown", javascript: "not-detected", encryption: "not-detected", pageLabels: "not-detected", rotation: "not-detected", metadata: "detected", annotationCount: 0, linkCount: 0, formFieldCount: 0, bookmarkCount: null, embeddedFileCount: null, pageLabelCount: null }, metadata: { status: "detected", title: { status: "detected", value: "Scanned fixture" }, author: { status: "unknown", value: null }, subject: { status: "unknown", value: null }, keywords: { status: "unknown", value: null }, creator: { status: "unknown", value: null }, producer: { status: "unknown", value: null }, creationDate: { status: "unknown", value: null }, modificationDate: { status: "unknown", value: null }, presentFieldCount: 1 }, images: { status: "detected", sampledPages: [1, 2], rasterPageCount: 2, highResolutionPageCount: 0, imageSignals: [], estimatedImageBytes: null, note: "bounded" }, fonts: { status: "unknown", count: null, embedded: "unknown", subset: "unknown", categories: [], note: "bounded" }, text: { status: "not-detected", sampledPages: [1, 2], pagesWithText: 0, boundedCharacterCount: 0, textPages: [], note: "bounded" }, layout: { textDensity: 0, lineDensity: 0, blockDensity: 0, imageDensity: 0, whitespace: "unknown", repeatedHeaderFooter: "unknown", note: "bounded" }, structure: { pageGroups: [{ startPage: 1, endPage: 2, role: "scan", confidence: "likely" }], sampledPageCount: 2, exactPageCount: 2, note: "bounded" }, ocrReadiness: "ocr-likely-useful", preservationRisk: { level: "low", status: "preservation-safe", reasons: ["Image-only pages are eligible for bounded raster optimization."], blockedOperations: [] }, optimizationOpportunities: ["image-recompression", "image-resolution"], recommendation: "OCR is likely useful before optimization", insights: [], warnings: [], sampledPages: [1, 2], pagesAnalyzed: 2, processingBoundary: "browser-local", ...overrides });
+  const pageResult = (pageNumber: number, text: string): OcrPageResult => ({ pageNumber, status: "completed", text, characterCount: text.length, blocks: [], lines: [], words: [{ text, box: null, confidence: { value: null, metric: "unavailable", note: "test" } }], boundingBoxes: [], confidence: { value: 88, metric: "engine-reported", note: "test" }, language: "eng", processingTimeMs: 1, failure: null, sourceRole: "scan", renderedWidth: 1_000, renderedHeight: 1_400 });
+  const ocrResult: OcrDocumentResult = { documentId: "fixture.pdf", fileName: "fixture.pdf", pageCount: 2, processedPages: [1, 2], skippedPages: [], failedPages: [], language: "eng", textPresence: "detected", pages: [pageResult(1, "Invoice 123\nEmail person@example.com"), pageResult(2, "Total $42")], boundedTextCharacterCount: 43, processingTimeMs: 2, cancelled: false, searchablePdfAvailable: false, warnings: [], processingBoundary: "browser-local" };
+
+  it("plans OCR conservatively and bounds recognized pages", () => {
+    expect(createOcrPlan(scannedAnalysis()).plannedPages).toEqual([1, 2]);
+    const large = createOcrPlan(scannedAnalysis({ pageCount: MAX_OCR_PAGES_PER_RUN + 3, pages: [] }));
+    expect(large.plannedPages).toHaveLength(MAX_OCR_PAGES_PER_RUN);
+    expect(large.skippedPages).toHaveLength(3);
+    expect(large.recommendation).toBe("review-limit");
+  });
+
+  it("keeps OCR output searchable locally and caps text search results", () => {
+    expect(extractBoundedOcrText(ocrResult.pages)).toContain("[Page 1]");
+    expect(searchOcrPages(ocrResult.pages, "invoice")).toMatchObject({ query: "invoice", matches: [{ pageNumber: 1 }] });
+    expect(searchOcrPages(ocrResult.pages, "").warnings[0]).toContain("search term");
+    expect(isOcrSearchablePdfEligible(createOcrPlan(scannedAnalysis()), ocrResult)).toBe(true);
+    expect(isOcrSearchablePdfEligible(createOcrPlan(scannedAnalysis()), { ...ocrResult, failedPages: [2] })).toBe(false);
+  });
+
+  it("derives deterministic document signals without retaining sensitive values", () => {
+    const structure = deriveDocumentStructure(scannedAnalysis(), ocrResult);
+    expect(structure.documentType).toMatchObject({ value: "invoice", confidence: "likely" });
+    expect(structure.sensitiveRegions.some((region) => region.kind === "email" && region.value === null)).toBe(true);
+    const snapshot = createDocumentUnderstandingSnapshot(scannedAnalysis(), createDocumentIntelligenceSnapshot(scannedAnalysis()), ocrResult);
+    expect(snapshot.futureAiBoundary).toBe("not-invoked");
+    expect(JSON.stringify(snapshot)).not.toContain("person@example.com");
+  });
+
+  it("maps OCR, searchable-PDF, search, and structure workflows explicitly", () => {
+    const asset = {} as Parameters<typeof createPdfOcrInspectionWorkflow>[0];
+    const plan = createOcrPlan(scannedAnalysis());
+    expect(createPdfOcrInspectionWorkflow(asset, plan).steps.map((step) => step.id)).toEqual(["pdf.inspect", "pdf.analyze.ocr_readiness", "pdf.ocr.plan", "validation"]);
+    expect(createPdfOcrRecognitionWorkflow(asset, plan, ocrResult).steps.map((step) => step.id)).toEqual(["pdf.inspect", "pdf.ocr.plan", "pdf.ocr.recognize", "pdf.ocr.validate", "validation"]);
+    expect(createPdfMakeSearchableWorkflow(asset, plan, ocrResult).steps.map((step) => step.id)).toEqual(["pdf.inspect", "pdf.ocr.plan", "pdf.ocr.recognize", "pdf.ocr.author", "pdf.reopen", "pdf.ocr.validate", "validation"]);
+    expect(createPdfSearchWorkflow(asset, "invoice").steps.map((step) => step.id)).toEqual(["pdf.text.search", "validation"]);
+    expect(createPdfStructureWorkflow(asset).steps.map((step) => step.id)).toEqual(["pdf.structure.analyze", "pdf.document.classify", "pdf.document.sensitive", "pdf.document.summary", "validation"]);
+  });
+
+  it("reports searchable candidate preservation validation honestly", () => {
+    const candidate = scannedAnalysis({ textPresence: "detected", features: { ...scannedAnalysis().features, text: "detected" }, text: { ...scannedAnalysis().text, status: "detected", boundedCharacterCount: 40 } });
+    const validation = validateSearchablePdfCandidate(scannedAnalysis(), candidate, createOcrPlan(scannedAnalysis()), ocrResult, [1, 2]);
+    expect(validation.status).toBe("valid");
+    expect(validation.candidateTextPresence).toBe("detected");
   });
 });
 

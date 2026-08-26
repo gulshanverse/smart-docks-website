@@ -2,7 +2,7 @@
 
 ## One file. One clear goal.
 
-SmartDocs is an intent-first, browser-local workspace for turning a human image or PDF goal into a measured and verified result. **Phase 4 adds a bounded advanced PDF intelligence foundation** on top of the completed Phase 1–3 image, PDF core, and Smart PDF Optimization flows.
+SmartDocs is an intent-first, browser-local workspace for turning a human image or PDF goal into a measured and verified result. **Phase 5 adds bounded browser-local OCR, searchable-PDF authoring, local text search, and deterministic document understanding** on top of the completed Phase 1–4 image, PDF core, Smart PDF Optimization, and advanced analysis flows.
 
 > Document bytes remain in local browser memory. SmartDocs does not upload image or PDF data to a server, API, cloud processor, database, analytics service, or remote storage service.
 
@@ -30,8 +30,13 @@ SmartDocs is an intent-first, browser-local workspace for turning a human image 
 | Mixed PDF hybrid path preserving detectable text pages and optimizing eligible raster-only pages | Implemented with limits |
 | Exact PDF target-size parsing, target-achieved, best-effort, original-preserved, and cancellation states | Implemented |
 | Bounded advanced PDF analysis: page roles, layout/structure hints, text samples/blocks, raster/vector/font signals, metadata, links, annotations, forms, bookmarks, embedded files, JavaScript signals, and page labels | Implemented with explicit Unknown states and sampling limits |
-| OCR readiness assessment without an OCR engine, plus bounded serializable document-intelligence snapshots that exclude document text content | Implemented |
+| OCR readiness assessment and bounded serializable document-intelligence snapshots that exclude document text content | Implemented |
 | Preservation-risk planning, destructive-path blocking, candidate re-analysis, and source-versus-candidate feature comparison | Implemented |
+| Browser-local English OCR in a pinned Tesseract.js worker with same-origin WASM/core/traineddata resources | Implemented with explicit page, language, and model limits |
+| Deterministic OCR planning, page-level results, progress, cancellation, partial-failure reporting, and bounded text retention | Implemented |
+| Validated searchable-PDF authoring with invisible text layer, original-page appearance preservation, reopen/render checks, and feature comparison | Implemented with font/encoding and geometry limits |
+| Local OCR/text extraction, bounded page-aware search, `.txt` export, and deterministic document-understanding signals | Implemented |
+| Hindi OCR language pack, automatic language detection, AI/LLM semantic understanding, translation, redaction, and universal searchable-PDF reconstruction | Not implemented |
 | OCR engines, AI/LLM planning, semantic extraction, translation, universal object-level PDF compression, backend/cloud processing, accounts, billing, batch queues, and public sharing | Not implemented |
 
 ## Smart PDF Optimization
@@ -52,6 +57,14 @@ The analysis service uses PDF.js catalog and page APIs for metadata, outlines, a
 
 Before a candidate can be selected, the candidate is reopened with PDF.js and re-analyzed. Changes to page count, detected searchable text, annotations, links, form fields, bookmarks, or embedded files make the candidate invalid. If all generated candidates fail, the original bytes are independently reopened and retained as the safe fallback. Destructive rasterization is blocked when the preservation plan cannot justify it. This is a preservation policy and validation layer, not universal object-level PDF rewriting; unsupported or weakly measurable features remain unchanged or cause a conservative fallback.
 
+## Phase 5 OCR and searchable PDFs
+
+Open **OCR + search** after adding a PDF. SmartDocs analyzes the source locally, makes a bounded plan, and either extracts existing searchable text or recognizes eligible scanned pages with the bundled English Tesseract.js worker. OCR is limited to 24 planned pages per run, processes pages sequentially, does not auto-detect languages, and retains only bounded text/results in browser memory. The original file is never overwritten.
+
+A searchable candidate is created with pdf-lib by copying source pages and adding an invisible text layer mapped from OCR bounding boxes. The candidate is reopened through PDF.js, representative pages are rendered, candidate text is checked, page geometry is compared, and Phase 4 feature-preservation rules are applied before a download is offered. Encoding failures are handled conservatively; no unsafe content-stream, xref, font, form, annotation, or link surgery is attempted.
+
+The OCR workspace also provides bounded local text extraction for text-native PDFs, page-aware search, clipboard copy when browser permission allows, `.txt` export, and deterministic document-understanding signals such as likely type, heading-like lines, table-like regions, signature-like regions, and sensitive-content presence. Sensitive matches are represented as kinds/counts only; values are not persisted or displayed as a redaction feature. This is deterministic document analysis, not AI/LLM understanding.
+
 ## PDF core behavior
 
 The Phase 2 tools remain available beside optimization: ordered merge, exact-range split, PDF-to-image rendering, JPEG/PNG-to-PDF authoring, page delete/extract/reorder/rotate, and conservative blank-page review/removal. Split ranges are parsed exactly and are never silently clamped. Multi-page image conversion offers individual real downloads rather than an unimplemented ZIP dependency.
@@ -62,13 +75,13 @@ WebP is supported for PDF-to-image rendering where browser canvas encoding succe
 
 ## Architecture
 
-The domain layer in `src/domain/pdfs/document-analysis.ts` owns bounded Phase 4 document-analysis contracts, page-role/OCR-readiness heuristics, preservation-risk derivation, insights, advanced plans, and intelligence snapshots. `src/domain/pdfs/preservation.ts` owns source-versus-candidate feature comparison and critical-loss rejection. `src/domain/pdfs/optimization.ts` owns optimization policies, candidate generation, target-aware ranking, reduction measurements, quality decisions, preservation-aware result construction, and best-effort output. `src/domain/intents/parse-intent.ts` owns deterministic image and PDF target-language parsing. `src/domain/tools/registry.ts` exposes only actual capabilities. `src/domain/workflows/types.ts` maps advanced analysis and optimization to explicit bounded inspection, structure, planning, candidate, preservation-validation, comparison, and preview steps.
+The domain layer in `src/domain/pdfs/document-analysis.ts` owns bounded Phase 4 document-analysis contracts, page-role/OCR-readiness heuristics, preservation-risk derivation, insights, advanced plans, and intelligence snapshots. `src/domain/pdfs/preservation.ts` owns source-versus-candidate feature comparison and critical-loss rejection. `src/domain/ocr/` owns provider-neutral OCR types, bounded planning, text search, deterministic understanding, and searchable-candidate validation. `src/domain/pdfs/optimization.ts` owns optimization policies, candidate generation, target-aware ranking, reduction measurements, quality decisions, preservation-aware result construction, and best-effort output. `src/domain/intents/parse-intent.ts` owns deterministic image and PDF target-language parsing. `src/domain/tools/registry.ts` exposes only actual capabilities. `src/domain/workflows/types.ts` maps analysis, OCR planning/recognition, searchable-PDF authoring, local search, deterministic understanding, optimization, preservation validation, comparison, and preview to explicit bounded steps.
 
-PDF.js is the inspection and rendering authority. pdf-lib `1.17.1` is the structural authoring authority for copying pages, creating PDFs, setting supported basic metadata, and embedding JPEG/PNG data. Heavy optimization UI and services are lazy-loaded so the initial app bundle remains lean. Each generated PDF is reopened through PDF.js before success or download is offered.
+PDF.js is the inspection and rendering authority. pdf-lib `1.17.1` is the structural authoring authority for copying pages, creating PDFs, setting supported basic metadata, embedding JPEG/PNG data, and appending the bounded invisible OCR text layer. Tesseract.js `7.0.0` is the pinned browser-local OCR adapter; its worker, core/WASM variants, and English traineddata are copied under same-origin `public/ocr/` resources so the provider does not use CDN defaults. Heavy optimization and OCR UI/services are lazy-loaded so the initial app bundle remains lean. Each generated PDF is reopened through PDF.js before success or download is offered.
 
 ## Privacy, security, and resource boundary
 
-The application validates file signatures, enforces local file-size and page limits, rejects protected or unusable PDFs, constructs safe filenames, avoids filename HTML injection, and keeps all document processing in the browser. PDF.js tasks are destroyed and canvases cleared in cleanup blocks. Generated preview and download object URLs are revoked when replaced or unmounted. Bounded analysis avoids retaining full text and never executes PDF JavaScript. No remote worker, server queue, database, cloud storage, authentication, billing, or analytics is part of this milestone.
+The application validates file signatures, enforces local file-size, page, OCR, text, and model-resource limits, rejects protected or unusable PDFs, constructs safe filenames, avoids filename HTML injection, and keeps all document processing in the browser. PDF.js tasks are destroyed and canvases cleared in cleanup blocks; the reusable OCR worker is terminated on cancellation and unmount. Generated preview and download object URLs are revoked when replaced or unmounted. Bounded analysis and OCR results avoid retaining unbounded full text, and PDF JavaScript is never executed. Same-origin OCR assets are static application resources, not a remote service. No server queue, database, cloud storage, authentication, billing, or analytics is part of this milestone.
 
 The quality policy is intentionally bounded. The optimizer does not reduce quality indefinitely to satisfy an arbitrary target. High-resolution scanned PDFs can still be CPU- and memory-intensive; users can cancel, and the result warnings explain when a target is not reachable.
 
@@ -79,19 +92,22 @@ The quality policy is intentionally bounded. The optimizer does not reduce quali
 ├── index.html
 ├── package.json
 ├── pnpm-lock.yaml
+├── public/ocr/         # same-origin Tesseract worker, core/WASM, and English data
 ├── src/
 │   ├── App.tsx
 │   ├── domain/
 │   │   ├── files/       # typed assets and browser-local limits
 │   │   ├── intents/     # deterministic image and PDF goal parsing
-│   │   ├── pdfs/        # inspection, page, core, and optimization contracts
+│   │   ├── pdfs/        # inspection, page, core, preservation, and optimization contracts
+│   │   ├── ocr/         # provider-neutral OCR, planning, search, and understanding contracts
 │   │   ├── tools/       # actual capability registry
 │   │   └── workflows/   # typed workflow models and steps
 │   ├── features/
 │   │   ├── compression/ # local image encoding and candidate selection
 │   │   ├── intake/      # signature, decode, and metadata inspection
-│   │   └── pdf/         # PDF.js workspace, rendering, authoring, optimization
-│   ├── styles/          # design tokens and application styles
+│   │   ├── pdf/         # PDF.js workspace, rendering, authoring, optimization
+│   │   ├── ocr/         # Tesseract adapter, recognition, extraction, searchable-PDF authoring
+│   │   └── styles/      # design tokens and application styles
 │   └── tests/           # deterministic domain and optimization tests
 ├── tests/fixtures/      # deterministic PDF and image fixtures
 └── docs/                # architecture, library, and browser verification records
@@ -120,18 +136,18 @@ pnpm build
 git diff --check
 ```
 
-The automated suite covers byte units, image intent and candidate behavior, PDF signature and inspection foundations, bounded sampling, page operations, exact split ranges, merge and image-to-PDF plans, safe filenames, conservative blank classification, reviewed-removal invariants, unified workflow mappings, target parsing, quality policies, candidate generation/ranking, target-achieved and best-effort result states, core output validation, Phase 4 page roles and OCR readiness, preservation-risk blockers, source-versus-candidate critical-loss comparison, bounded intelligence snapshots, preservation-status mapping, and advanced workflow steps.
+The automated suite covers byte units, image intent and candidate behavior, PDF signature and inspection foundations, bounded sampling, page operations, exact split ranges, merge and image-to-PDF plans, safe filenames, conservative blank classification, reviewed-removal invariants, unified workflow mappings, target parsing, quality policies, candidate generation/ranking, target-achieved and best-effort result states, core output validation, Phase 4 page roles and OCR readiness, preservation-risk blockers, source-versus-candidate critical-loss comparison, bounded intelligence snapshots, preservation-status mapping, advanced workflow steps, Phase 5 OCR planning/page bounds, searchable eligibility, local text extraction/search, sensitive-value exclusion, deterministic understanding, searchable-PDF workflows, and candidate validation.
 
-The deterministic fixture generator is `tests/fixtures/generate_pdf_fixtures.py`. It produces the earlier image/PDF fixtures, high-resolution scanned fixtures for measurable Phase 3 compression tests, and the small `feature-preservation-fixture.pdf` with real metadata, link annotation, and outline-generation signals for Phase 4 checks. Existing tracked fixture binaries should not be regenerated casually because PDF metadata identifiers can create unrelated binary churn.
+The deterministic fixture generator is `tests/fixtures/generate_pdf_fixtures.py`. It produces the earlier image/PDF fixtures, high-resolution scanned fixtures for measurable Phase 3 compression tests, and the small `feature-preservation-fixture.pdf` with real metadata, link annotation, and outline-generation signals for Phase 4 checks. Phase 5 browser validation uses the committed text, scanned, and larger scanned fixtures; no fixture embeds remote OCR or model data. Existing tracked fixture binaries should not be regenerated casually because PDF metadata identifiers can create unrelated binary churn.
 
 ## Verification records
 
-The Phase 3 architecture, quality policy, preservation boundary, resource lifecycle, and library references are in [`docs/phase-3-smart-pdf-optimization.md`](docs/phase-3-smart-pdf-optimization.md). Phase 4 architecture, PDF.js capability boundaries, preservation validation, and security/resource decisions are in [`docs/phase-4-advanced-pdf-engine.md`](docs/phase-4-advanced-pdf-engine.md). Final Phase 4 browser evidence is in [`docs/phase-4-browser-verification.md`](docs/phase-4-browser-verification.md); working notes are in [`docs/phase-4-browser-notes.md`](docs/phase-4-browser-notes.md). Phase 2 history remains in the earlier architecture, research, and verification documents.
+The Phase 3 architecture, quality policy, preservation boundary, resource lifecycle, and library references are in [`docs/phase-3-smart-pdf-optimization.md`](docs/phase-3-smart-pdf-optimization.md). Phase 4 architecture, PDF.js capability boundaries, preservation validation, and security/resource decisions are in [`docs/phase-4-advanced-pdf-engine.md`](docs/phase-4-advanced-pdf-engine.md), with browser evidence in [`docs/phase-4-browser-verification.md`](docs/phase-4-browser-verification.md). Phase 5 OCR engine research is recorded in [`docs/phase-5-ocr-engine-research.md`](docs/phase-5-ocr-engine-research.md), the architecture and searchable-PDF boundary will be recorded in [`docs/phase-5-ocr-searchable-pdf.md`](docs/phase-5-ocr-searchable-pdf.md), and the final browser matrix will be recorded in [`docs/phase-5-browser-verification.md`](docs/phase-5-browser-verification.md).
 
 ## Roadmap boundary
 
-Phase 4 advanced PDF intelligence is the current milestone. It establishes bounded signals, preservation-risk planning, and independently validated candidate selection without pretending to provide universal PDF object rewriting. The next recommended work remains separate: OCR engines, AI/LLM planning, semantic extraction, translation, richer PDF editing, backend processing, cloud storage, batch execution, public sharing, authentication, billing, and analytics.
+Phase 5 browser-local OCR and deterministic document understanding is the current milestone. It establishes bounded English OCR, local text extraction/search, validated searchable-PDF authoring, and preservation-first candidate checks without pretending to provide automatic language detection, AI/LLM semantics, translation, redaction, or universal PDF object rewriting. The next recommended work remains separate: additional language packs, AI/LLM planning, translation, richer PDF editing, backend processing, cloud storage, batch execution, public sharing, authentication, billing, and analytics.
 
 ## License
 
-This project is licensed under the MIT License. pdf-lib `1.17.1` is used under its MIT license. PDF.js is used for browser-side parsing and rendering under its project license. Library research and source links are documented in [`docs/phase-2c-library-research.md`](docs/phase-2c-library-research.md) and the Phase 3 architecture document.
+This project is licensed under the MIT License. pdf-lib `1.17.1` is used under its MIT license. Tesseract.js `7.0.0` is used under Apache-2.0, and its bundled English language data is distributed under the package’s documented MIT license. PDF.js is used for browser-side parsing and rendering under its project license. Library research and source links are documented in [`docs/phase-2c-library-research.md`](docs/phase-2c-library-research.md), [`docs/phase-5-ocr-engine-research.md`](docs/phase-5-ocr-engine-research.md), and the Phase 3/4 architecture documents.

@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Check, ChevronDown, ChevronUp, Download, FileImage, FilePlus2, Layers3, ScanText, Trash2, X } from "lucide-react";
 const PdfOptimizationPanel = lazy(() => import("./PdfOptimizationPanel").then((module) => ({ default: module.PdfOptimizationPanel })));
+const PdfOcrPanel = lazy(() => import("../ocr/PdfOcrPanel").then((module) => ({ default: module.PdfOcrPanel })));
 import type { PdfAsset } from "../../domain/files/types";
 import { createBlankDetectionPlan, createBlankRemovalPlan, createImageToPdfPlan, createMergePlan, createPdfImagePlan, createSplitPlan, type BlankPageSignals, type PdfImageFormat, type PdfImageResolution, type PdfMetadataSnapshot } from "../../domain/pdfs/core";
 import { validateCorePdfOutput, type CorePdfValidation } from "../../domain/pdfs/core-validation";
@@ -16,7 +17,7 @@ interface ValidatedPdfResult { output: CorePdfOutput; file: File; asset: PdfAsse
 interface MergeInput { file: File; asset: PdfAsset; }
 
 export function PdfCoreTools({ currentFile, currentAsset, onContinueResult }: PdfCoreToolsProps) {
-  const [active, setActive] = useState<"merge" | "split" | "images" | "create" | "blank" | "optimization">(currentAsset ? "optimization" : "merge");
+  const [active, setActive] = useState<"merge" | "split" | "images" | "create" | "blank" | "optimization" | "ocr">(currentAsset ? "optimization" : "merge");
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [mergeInputs, setMergeInputs] = useState<MergeInput[]>([]);
@@ -189,6 +190,7 @@ export function PdfCoreTools({ currentFile, currentAsset, onContinueResult }: Pd
     <div className="pdf-core-heading"><div><p className="eyebrow"><span className="eyebrow-line" /> PDF core + optimization</p><h3 id="pdf-core-title">Do more with your document.</h3><p>Optimize, merge, split, convert, and clean PDFs locally. Every generated PDF is reopened with PDF.js before download.</p></div><span className="local-badge"><Check size={13} /> Browser-local</span></div>
     <div className="pdf-core-tabs" role="tablist" aria-label="PDF core operations">
       <CoreTab id="optimization" active={active === "optimization"} onClick={() => { setActive("optimization"); resetNotice(); }}>Optimize PDF</CoreTab>
+      <CoreTab id="ocr" active={active === "ocr"} onClick={() => { setActive("ocr"); resetNotice(); }} disabled={!currentAsset}>OCR + search</CoreTab>
       <CoreTab id="merge" active={active === "merge"} onClick={() => { setActive("merge"); resetNotice(); }}>Merge PDFs</CoreTab>
       <CoreTab id="split" active={active === "split"} onClick={() => { setActive("split"); resetNotice(); }} disabled={!currentAsset}>Split PDF</CoreTab>
       <CoreTab id="images" active={active === "images"} onClick={() => { setActive("images"); resetNotice(); }} disabled={!currentAsset}>PDF → images</CoreTab>
@@ -197,6 +199,7 @@ export function PdfCoreTools({ currentFile, currentAsset, onContinueResult }: Pd
     </div>
     {notice ? <div className="core-notice" role="alert"><X size={16} /><span>{notice}</span></div> : null}
     {active === "optimization" ? <Suspense fallback={<div className="core-panel"><span className="spinner" /> Loading PDF optimization tools…</div>}><PdfOptimizationPanel file={currentFile} asset={currentAsset} onContinueResult={onContinueResult} /></Suspense> : null}
+    {active === "ocr" ? <Suspense fallback={<div className="core-panel"><span className="spinner" /> Loading local OCR tools…</div>}><PdfOcrPanel file={currentFile} asset={currentAsset} onContinueResult={onContinueResult} /></Suspense> : null}
     {active === "merge" ? <MergePanel inputs={mergeInputs} busy={busy} preserveMetadata={preserveMetadata} onPreserve={setPreserveMetadata} onFiles={handleMergeFiles} onMove={moveMerge} onRemove={(index) => setMergeInputs((current) => current.filter((_, itemIndex) => itemIndex !== index))} onRun={() => void runMerge()} /> : null}
     {active === "split" && currentAsset ? <SplitPanel currentAsset={currentAsset} ranges={splitRanges} setRanges={setSplitRanges} busy={busy} onRun={() => void runSplit()} /> : null}
     {active === "images" && currentAsset ? <PdfToImagePanel ranges={imagePageRanges} setRanges={setImagePageRanges} format={imageFormat} setFormat={setImageFormat} resolution={imageResolution} setResolution={setImageResolution} busy={busy} onRun={() => void runPdfToImage()} outputs={imageOutputs} urls={imageUrls.current} /> : null}

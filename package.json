@@ -13,12 +13,14 @@
     "lint": "tsc --noEmit"
   },
   "dependencies": {
+    "@tesseract.js-data/eng": "1.0.0",
     "@vitejs/plugin-react": "latest",
     "lucide-react": "latest",
     "pdf-lib": "1.17.1",
     "pdfjs-dist": "6.2.108",
     "react": "latest",
     "react-dom": "latest",
+    "tesseract.js": "7.0.0",
     "typescript": "latest",
     "vite": "latest",
     "vitest": "latest"
