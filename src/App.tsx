@@ -26,6 +26,9 @@ import { PDFJS_VERSION } from "./features/pdf/config";
 import { PdfPageWorkspace } from "./features/pdf/PdfPageWorkspace";
 import { PdfCoreTools } from "./features/pdf/PdfCoreTools";
 import { OfficeWorkspace } from "./features/office/OfficeWorkspace";
+import { UnifiedWorkspace } from "./features/unified/UnifiedWorkspace";
+import { planUnifiedWorkflow } from "./domain/unified/planner";
+import type { UnifiedWorkflowPlan, UnifiedWorkflowState } from "./domain/unified/types";
 import "./styles/tokens.css";
 import "./styles/app.css";
 
@@ -72,6 +75,8 @@ function App() {
   const [stage, setStage] = useState<WorkflowStage | null>(null);
   const [keepOriginalDimensions, setKeepOriginalDimensions] = useState(false);
   const [pdfNavigationRequest, setPdfNavigationRequest] = useState<{ pageNumber: number; token: number } | null>(null);
+  const [unifiedPlan, setUnifiedPlan] = useState<UnifiedWorkflowPlan | null>(null);
+  const [unifiedState, setUnifiedState] = useState<UnifiedWorkflowState>("idle");
   const pdfNavigationTokenRef = useRef(0);
 
   useEffect(() => {
@@ -104,6 +109,8 @@ function App() {
     setIntent(null);
     setKeepOriginalDimensions(false);
     setNotice(null);
+    setUnifiedPlan(null);
+    setUnifiedState("intake");
     setReadingFile(true);
     try {
       const result = await inspectFile(file, setStage);
@@ -112,6 +119,7 @@ function App() {
         return;
       }
       assetUrlRef.current = result.previewUrl;
+      setUnifiedState("inspecting");
       currentFileRef.current = file;
       pdfFileRef.current = result.category === "pdf" ? file : null;
 
@@ -120,6 +128,7 @@ function App() {
         setPdfValidation(validatePdfInspection(workflow.input));
       }
       setAsset(result);
+      setUnifiedState("idle");
     } catch {
       setNotice({
         title: "We could not inspect that file.",
@@ -140,17 +149,19 @@ function App() {
   function handleGoalChange(value: string) {
     setGoal(value);
     setIntent(null);
+    setUnifiedPlan(null);
+    setUnifiedState("idle");
     if (notice?.title === "We need a clearer goal.") setNotice(null);
   }
 
-  async function runWorkflow(options: { allowResize?: boolean } = {}) {
+  async function runWorkflow(options: { allowResize?: boolean } = {}): Promise<boolean> {
     if (!asset) {
       setNotice({
         title: "Add a file first.",
         message: "There is no file ready for this workflow.",
         recovery: "Choose a supported image or PDF above.",
       });
-      return;
+      return false;
     }
     if (asset.category === "pdf") {
       const parsed = parsePdfIntent(goal);
@@ -159,11 +170,11 @@ function App() {
         message: parsed.message,
         recovery: "Use Optimize PDF below to analyze the document, choose a quality policy, and validate a browser-local result.",
       });
-      return;
+      return true;
     }
     if (asset.category === "office") {
       setNotice({ title: "Office inspection is ready.", message: "Use the Office workspace below for bounded structure and text extraction. Office-to-PDF conversion is currently unavailable locally.", recovery: "Download the bounded TXT extraction or continue with a supported image/PDF conversion workflow." });
-      return;
+      return true;
     }
     const parsed = parseImageIntent(goal);
     setIntent(parsed);
@@ -173,7 +184,7 @@ function App() {
         message: parsed.message,
         recovery: "Use an exact target such as “make this image under 100KB.”",
       });
-      return;
+      return false;
     }
 
     setNotice(null);
@@ -185,15 +196,37 @@ function App() {
       const result = await compressImage(asset, workflow.intent, setStage, { allowResize: options.allowResize ?? !keepOriginalDimensions });
       resultUrlsRef.current = [result.previewUrl, result.downloadUrl];
       setOutcome(result);
+      return true;
     } catch (error) {
       setNotice({
         title: "The image could not be processed locally.",
         message: error instanceof Error ? error.message : "The browser stopped during image processing.",
         recovery: "Try a smaller image or another supported format.",
       });
+      return false;
     } finally {
       setStage(null);
     }
+  }
+
+  function reviewUnifiedPlan() {
+    if (!asset) return;
+    setUnifiedState("planning");
+    const nextPlan = planUnifiedWorkflow(asset, goal);
+    setUnifiedPlan(nextPlan);
+    setUnifiedState("review");
+  }
+
+  async function confirmUnifiedPlan() {
+    if (!unifiedPlan) return;
+    setUnifiedState("running");
+    const success = await runWorkflow();
+    setUnifiedState(success ? "completed" : "recoverable-error");
+  }
+
+  function cancelUnifiedPlan() {
+    setUnifiedPlan(null);
+    setUnifiedState("cancelled");
   }
 
   function reprocessWithResize(allowResize: boolean) {
@@ -235,6 +268,8 @@ function App() {
     setIntent(null);
     setOutcome(null);
     setNotice(null);
+    setUnifiedPlan(null);
+    setUnifiedState("idle");
     setStage(null);
     setKeepOriginalDimensions(false);
     setPdfNavigationRequest(null);
@@ -306,7 +341,7 @@ function App() {
                 )}
               </div>
 
-              <div className="workflow-card goal-card">
+              <div className="workflow-card goal-card legacy-goal-card">
                 <div className="card-label"><span className="label-icon violet"><WandSparkles size={15} /></span> 02 · Describe the goal</div>
                 <label htmlFor="goal-input" className="goal-label">What should happen to this file?</label>
                 <textarea id="goal-input" value={goal} onChange={(event) => handleGoalChange(event.target.value)} placeholder={asset?.category === "pdf" ? "e.g. compress this PDF under 2MB" : asset?.category === "office" ? "e.g. extract all text from this Word file" : "e.g. make this image under 100KB"} rows={3} data-testid="goal-input" />
@@ -321,6 +356,7 @@ function App() {
               </div>
             </div>
 
+            {asset ? <UnifiedWorkspace asset={asset} goal={goal} state={unifiedState} plan={unifiedPlan} busy={isBusy} onGoalChange={handleGoalChange} onReview={reviewUnifiedPlan} onConfirm={() => void confirmUnifiedPlan()} onCancel={cancelUnifiedPlan} onResetPlan={() => { setUnifiedPlan(null); setUnifiedState("idle"); }} /> : null}
             {asset?.category === "pdf" && pdfFileRef.current ? <PdfPageWorkspace file={pdfFileRef.current} asset={asset} requestedPageNumber={pdfNavigationRequest?.pageNumber} navigationRequestToken={pdfNavigationRequest?.token} /> : null}
             {asset?.category === "office" ? <OfficeWorkspace asset={asset} /> : null}
             <PdfCoreTools currentFile={pdfFileRef.current} currentAsset={asset?.category === "pdf" ? asset : null} currentInputFile={currentFileRef.current} currentInputAsset={asset} onContinueResult={continueWithPdfResult} onNavigateToPage={navigateToPdfPage} />

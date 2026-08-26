@@ -44,6 +44,8 @@ import { CONVERSION_CONTRACT_VERSION, type ConversionIntent, type ConversionSour
 import { conversionFilename, pageConversionFilename, uniqueFilename } from "../domain/conversions/naming";
 import { hasImageSignature, hasPdfSignature as hasConversionPdfSignature, sizeDifferencePercent, targetAchieved, validateImageOutput, validatePdfOutput } from "../domain/conversions/validation";
 import type { OfficeAsset } from "../domain/office/types";
+import { planUnifiedWorkflow, availableCapabilities } from "../domain/unified/planner";
+import { canTransition, transitionWorkflowState } from "../domain/unified/state";
 
 describe("byte units", () => {
   it("uses decimal KB and MB values", () => {
@@ -719,6 +721,26 @@ describe("Phase 9 Office workflow contracts", () => {
     expect(createOfficeWorkflow(officeAsset, "preview").steps.map((step) => step.id)).toEqual(["office.package.inspect", "office.metadata.inspect", "office.structure.preview", "office.validate"]);
     expect(createOfficeWorkflow(officeAsset, "extract_text").steps.map((step) => step.id)).toContain("office.text.extract");
     expect(createOfficeWorkflow(officeAsset, "convert_to_pdf_unavailable").steps.map((step) => step.id)).toEqual(["office.conversion.unavailable"]);
+  });
+});
+
+describe("Phase 10 unified workspace", () => {
+  const imageAsset = { id: "img-1", name: "photo.png", sizeBytes: 1000, extension: "png", processingBoundary: "browser-local" as const, category: "image" as const, mimeType: "image/png" as const, width: 120, height: 80, previewUrl: "blob:preview", capabilities: { compressToTarget: true as const } };
+  const pdfAsset = { id: "pdf-1", name: "source.pdf", sizeBytes: 2000, extension: "pdf", processingBoundary: "browser-local" as const, category: "pdf" as const, mimeType: "application/pdf" as const, pdfVersion: "1.7", pageCount: 8, encrypted: false, passwordProtected: false, textPresence: "detected" as const, textExtractable: true, classification: "text" as const, pageDimensions: null, previewUrl: "blob:preview", capabilities: { inspect: true as const, renderPreview: true as const }, warnings: [] };
+  const officeAsset = { id: "office-1", name: "book.xlsx", sizeBytes: 3000, extension: "xlsx", processingBoundary: "browser-local" as const, category: "office" as const, mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" as const, format: "xlsx" as const, documentType: "spreadsheet" as const, analysis: {} as OfficeAsset["analysis"], warnings: [], capabilities: {} as OfficeAsset["capabilities"], validationStatus: "validated" as const, previewUrl: null };
+
+  it("plans image, PDF, Office, and unsupported goals through one contract", () => {
+    expect(planUnifiedWorkflow(imageAsset, "make this image under 100KB").intent.operation).toBe("image.compress");
+    expect(planUnifiedWorkflow(pdfAsset, "make this PDF searchable").intent.operation).toBe("pdf.ocr");
+    expect(planUnifiedWorkflow(officeAsset, "show me the sheets and formulas").intent.operation).toBe("office.extract_text");
+    expect(planUnifiedWorkflow(officeAsset, "convert this Office file to PDF").intent.operation).toBe("unsupported");
+    expect(availableCapabilities(officeAsset)).toContain("office.preview.spreadsheet");
+  });
+
+  it("rejects impossible workflow state transitions", () => {
+    expect(canTransition("review", "running")).toBe(false);
+    expect(() => transitionWorkflowState("cancelled", "completed")).toThrow(/Invalid workflow transition/);
+    expect(transitionWorkflowState("review", "awaiting-confirmation")).toBe("awaiting-confirmation");
   });
 });
 

@@ -972,3 +972,40 @@ textarea:focus { border-color: var(--sd-indigo); box-shadow: 0 0 0 4px rgba(70,8
 .office-boundary-note { display: grid; gap: 4px; margin-top: 16px; padding: 14px 16px; border-radius: 14px; background: #f1efff; color: #4b3b84; }
 .office-boundary-note span { color: #6c6193; line-height: 1.45; font-size: .9rem; }
 @media (max-width: 760px) { .office-workspace { padding: 18px; border-radius: 18px; } .office-workspace-heading { display: grid; } .office-overview-grid, .office-capability-grid, .office-slide-grid { grid-template-columns: 1fr; } .office-sheet-card > div:first-child { display: grid; } .office-cell-list > div { grid-template-columns: 48px minmax(0, 1fr); } .office-cell-list small { grid-column: 2; } }
+
+/* Phase 10 unified workspace */
+.unified-workspace { margin: 28px 0 22px; padding: 28px; border: 1px solid var(--sd-line); border-radius: 22px; background: linear-gradient(135deg, rgba(255,255,255,.96), rgba(246,243,255,.82)); box-shadow: 0 18px 48px rgba(47, 31, 79, .08); }
+.unified-workspace-heading, .unified-plan-heading, .unified-confirm-row, .unified-action-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.unified-workspace-heading h3, .unified-plan-heading h4 { margin: 6px 0 8px; color: var(--sd-ink); }
+.unified-workspace-heading p:not(.eyebrow) { max-width: 760px; margin: 0; color: var(--sd-muted); line-height: 1.65; }
+.unified-overview-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 22px 0 16px; }
+.unified-overview-card { min-width: 0; padding: 16px; border-radius: 15px; background: rgba(255,255,255,.74); border: 1px solid rgba(79, 61, 112, .11); }
+.unified-overview-card span, .unified-overview-card small { display: block; color: var(--sd-muted); font-size: .78rem; }
+.unified-overview-card strong { display: block; margin: 5px 0; color: var(--sd-ink); font-size: 1rem; overflow-wrap: anywhere; }
+.unified-capability-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 14px 0 21px; }
+.unified-label { color: var(--sd-muted); font-size: .79rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; }
+.capability-pill { display: inline-flex; padding: 6px 9px; border-radius: 99px; color: #4c3478; background: #eee8fb; font-size: .73rem; font-weight: 700; }
+.capability-pill.unavailable { color: #87513e; background: #f8e7dc; }
+.unified-goal-row { display: grid; grid-template-columns: 180px minmax(0, 1fr); gap: 18px; align-items: start; }
+.unified-goal-row label { padding-top: 10px; color: var(--sd-ink); font-weight: 750; }
+.unified-goal-controls textarea { width: 100%; min-height: 62px; resize: vertical; }
+.unified-action-row { justify-content: flex-start; margin-top: 10px; }
+.unified-action-row .primary-button, .unified-action-row .secondary-button { width: auto; padding: 0 16px; }
+.unified-plan-card { margin-top: 22px; padding: 22px; border-radius: 17px; background: #fff; border: 1px solid rgba(79, 61, 112, .16); }
+.unified-risk { padding: 6px 10px; border-radius: 99px; font-size: .75rem; font-weight: 800; text-transform: capitalize; }
+.risk-low { color: #276345; background: #e2f3e9; } .risk-medium { color: #775218; background: #fff0c9; } .risk-high { color: #843e38; background: #fbe0dd; } .risk-unknown { color: #5d5969; background: #eceaf0; }
+.unified-step-list { display: grid; gap: 10px; margin: 18px 0; padding: 0; list-style: none; }
+.unified-step-list li { display: flex; gap: 12px; align-items: flex-start; padding: 12px; border-radius: 12px; background: #faf9fd; }
+.step-number { display: grid; flex: 0 0 25px; place-items: center; width: 25px; height: 25px; border-radius: 50%; color: #fff; background: var(--sd-violet); font-size: .76rem; font-weight: 800; }
+.unified-step-list li div { display: grid; gap: 3px; min-width: 0; } .unified-step-list li span, .unified-step-list li small { color: var(--sd-muted); font-size: .78rem; }
+.unified-step-list li strong { color: var(--sd-ink); } .unified-plan-meta { display: flex; flex-wrap: wrap; gap: 12px; color: var(--sd-muted); font-size: .78rem; } .unified-plan-meta span { display: inline-flex; gap: 5px; align-items: center; }
+.unified-warning, .unified-state { display: flex; gap: 8px; align-items: center; margin: 16px 0 0; padding: 12px 14px; border-radius: 11px; color: #805023; background: #fff5db; font-size: .82rem; }
+.unified-state.success { color: #276345; background: #e2f3e9; }
+.unified-confirm-row { justify-content: flex-end; margin-top: 18px; }
+.unified-confirm-row .primary-button, .unified-confirm-row .secondary-button { width: auto; padding: 0 16px; }
+@media (max-width: 760px) { .unified-workspace { padding: 20px 16px; } .unified-workspace-heading, .unified-plan-heading { align-items: flex-start; flex-direction: column; } .unified-overview-grid { grid-template-columns: 1fr; } .unified-goal-row { grid-template-columns: 1fr; gap: 8px; } .unified-goal-row label { padding-top: 0; } .unified-confirm-row { align-items: stretch; flex-direction: column-reverse; } .unified-confirm-row button { width: 100%; justify-content: center; } }
+@media (prefers-reduced-motion: reduce) { .unified-workspace * { scroll-behavior: auto !important; transition-duration: 0.01ms !important; } }
+
+/* The unified planner is the primary goal entry; legacy quick controls remain mounted for compatibility. */
+.legacy-goal-card { display: none; }
+.workflow-layout:has(.legacy-goal-card) { grid-template-columns: 1fr; }
