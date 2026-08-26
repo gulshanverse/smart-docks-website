@@ -33,6 +33,10 @@ import { DeterministicMockAiProvider } from "../features/ai/mock-provider";
 import { promptForOperation } from "../domain/ai/prompts";
 import { toolRegistry } from "../domain/tools/registry";
 import type { AiDocumentContext, AiOperationResult } from "../domain/ai/types";
+import { pageIdentity, type DocumentAction } from "../domain/actions/types";
+import { createUserAction, planDocumentActions } from "../domain/actions/planner";
+import { clampRect, viewportToPdf } from "../domain/actions/coordinates";
+import { createPdfActionWorkflow } from "../domain/workflows/types";
 
 describe("byte units", () => {
   it("uses decimal KB and MB values", () => {
@@ -556,5 +560,57 @@ describe("Phase 6 AI document intelligence", () => {
     const missing = await provider.answerQuestion(missingRequest);
     if (missing.state !== "completed" || missing.result.operation !== "ask") throw new Error("expected completed missing answer");
     expect(missing.result.value.sourceStatus).toBe("not-found");
+  });
+});
+
+
+describe("Phase 7 safe document actions", () => {
+  const documentId = "phase7-fixture";
+  const target = (pageNumber: number) => ({ page: pageIdentity(documentId, pageNumber), rect: { x: 72, y: 500, width: 220, height: 48 } });
+
+  it("creates stable page identities and a reviewable redaction plan", () => {
+    const action = createUserAction(documentId, "redact-region", [target(1)], { rect: target(1).rect, text: "secret@example.test" }, "Regex matched a synthetic sensitive value.");
+    const result = planDocumentActions(documentId, 2, [action], "plan-1");
+    expect("plan" in result).toBe(true);
+    if ("plan" in result) {
+      expect(result.plan.coordinateModel).toBe("pdf-points-bottom-left");
+      expect(result.plan.actions[0].confirmationRequired).toBe(true);
+      expect(result.plan.requiresHighRiskConfirmation).toBe(true);
+      expect(result.plan.actions[0].targets[0].page.sourcePageId).toBe("phase7-fixture:page:1");
+    }
+  });
+
+  it("deduplicates identical queued actions and rejects delete conflicts", () => {
+    const highlight = createUserAction(documentId, "highlight-region", [target(1)], { rect: target(1).rect }, "User review");
+    const duplicate = { ...highlight, actionId: "different-id" };
+    const deduped = planDocumentActions(documentId, 2, [highlight, duplicate]);
+    expect("plan" in deduped && deduped.plan.actions).toHaveLength(1);
+    const deletion = createUserAction(documentId, "delete-pages", [target(1)], {}, "User review");
+    const conflict = planDocumentActions(documentId, 2, [deletion, highlight]);
+    expect("error" in conflict && conflict.error.code).toBe("conflict");
+  });
+
+  it("rejects invalid page, region, and annotation parameters", () => {
+    const outsidePage = createUserAction(documentId, "highlight-region", [{ page: pageIdentity(documentId, 3), rect: { x: 1, y: 1, width: 10, height: 10 } }], {}, "User review");
+    expect("error" in planDocumentActions(documentId, 2, [outsidePage])).toBe(true);
+    const outsideRect = createUserAction(documentId, "redact-region", [{ page: pageIdentity(documentId, 1), rect: { x: -1, y: 1, width: 10, height: 10 } }], {}, "User review");
+    expect("error" in planDocumentActions(documentId, 2, [outsideRect])).toBe(true);
+    const emptyText = createUserAction(documentId, "add-text", [target(1)], { rect: target(1).rect, text: "", fontSize: 14 }, "User review");
+    expect("error" in planDocumentActions(documentId, 2, [emptyText])).toBe(true);
+  });
+
+  it("maps browser view rectangles into PDF points for every supported rotation", () => {
+    const base = { x: 100, y: 80, width: 160, height: 120, viewportWidth: 600, viewportHeight: 800 };
+    expect(viewportToPdf(base, { width: 600, height: 800, rotation: 0 })).toEqual({ x: 100, y: 600, width: 160, height: 120 });
+    expect(viewportToPdf({ ...base, viewportWidth: 800, viewportHeight: 600 }, { width: 600, height: 800, rotation: 90 })).toEqual({ x: 80, y: 100, width: 120, height: 160 });
+    expect(viewportToPdf(base, { width: 600, height: 800, rotation: 180 })).toEqual({ x: 340, y: 80, width: 160, height: 120 });
+    expect(clampRect({ x: -5, y: 10, width: 40, height: 50 }, { width: 100, height: 100 })).toEqual({ x: 0, y: 10, width: 35, height: 50 });
+  });
+
+  it("exposes explicit redaction workflow states", () => {
+    const action = createUserAction(documentId, "redact-region", [target(1)], { rect: target(1).rect }, "User review");
+    const planned = planDocumentActions(documentId, 2, [action]);
+    expect("plan" in planned).toBe(true);
+    if ("plan" in planned) expect(createPdfActionWorkflow({ id: documentId, name: "fixture.pdf", sizeBytes: 1, extension: "pdf", category: "pdf", mimeType: "application/pdf", processingBoundary: "browser-local", pdfVersion: "1.7", pageCount: 2, encrypted: false, passwordProtected: false, textPresence: "detected", textExtractable: true, classification: "text", pageDimensions: null, previewUrl: null, capabilities: { inspect: true, renderPreview: true }, warnings: [] }, planned.plan).steps.map((step) => step.id)).toEqual(["pdf.action.plan", "pdf.redaction.review", "pdf.redaction.execute", "pdf.redaction.validate", "validation"]);
   });
 });

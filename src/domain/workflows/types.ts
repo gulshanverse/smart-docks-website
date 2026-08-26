@@ -7,9 +7,10 @@ import type { ImageToPdfPlan, PdfBlankDetectionPlan, PdfBlankRemovalPlan, PdfIma
 import type { PdfOptimizationIntent, PdfOptimizationPlan } from "../pdfs/optimization";
 import type { DocumentIntelligenceSnapshot, PdfAdvancedOptimizationPlan, PdfDocumentAnalysis } from "../pdfs/document-analysis";
 import type { AiOperation } from "../ai/types";
+import type { DocumentActionPlan } from "../actions/types";
 import type { DocumentSearchResult, DocumentStructureResult, OcrDocumentResult, OcrPlan } from "../ocr/types";
 
-export type WorkflowStepId = "image.compress.target_size" | "pdf.inspect" | "pdf.inspect.page" | "pdf.render.preview" | "pdf.delete.pages" | "pdf.extract.pages" | "pdf.reorder.pages" | "pdf.rotate.pages" | "pdf.merge" | "pdf.split" | "pdf.render.images" | "image.create.pdf" | "pdf.detect.blank_pages" | "pdf.remove.blank_pages" | "pdf.analyze.optimization" | "pdf.optimize.target_size" | "pdf.analyze.advanced" | "pdf.analyze.features" | "pdf.analyze.structure" | "pdf.extract.bounded_text" | "pdf.analyze.layout" | "pdf.analyze.ocr_readiness" | "pdf.plan.optimization" | "pdf.generate.candidates" | "pdf.validate.preservation" | "pdf.compare" | "intelligence.snapshot" | "pdf.ocr.inspect" | "pdf.ocr.plan" | "pdf.ocr.recognize" | "pdf.ocr.author" | "pdf.ocr.validate" | "pdf.reopen" | "pdf.text.extract" | "pdf.text.search" | "pdf.structure.analyze" | "pdf.document.classify" | "pdf.document.sensitive" | "pdf.document.summary" | "ai.document.prepare" | "ai.document.retrieve" | "ai.document.analyze" | "ai.document.validate" | "ai.document.ask" | "ai.document.extract" | "validation";
+export type WorkflowStepId = "image.compress.target_size" | "pdf.inspect" | "pdf.inspect.page" | "pdf.render.preview" | "pdf.delete.pages" | "pdf.extract.pages" | "pdf.reorder.pages" | "pdf.rotate.pages" | "pdf.merge" | "pdf.split" | "pdf.render.images" | "image.create.pdf" | "pdf.detect.blank_pages" | "pdf.remove.blank_pages" | "pdf.analyze.optimization" | "pdf.optimize.target_size" | "pdf.analyze.advanced" | "pdf.analyze.features" | "pdf.analyze.structure" | "pdf.extract.bounded_text" | "pdf.analyze.layout" | "pdf.analyze.ocr_readiness" | "pdf.plan.optimization" | "pdf.generate.candidates" | "pdf.validate.preservation" | "pdf.compare" | "intelligence.snapshot" | "pdf.ocr.inspect" | "pdf.ocr.plan" | "pdf.ocr.recognize" | "pdf.ocr.author" | "pdf.ocr.validate" | "pdf.reopen" | "pdf.text.extract" | "pdf.text.search" | "pdf.structure.analyze" | "pdf.document.classify" | "pdf.document.sensitive" | "pdf.document.summary" | "ai.document.prepare" | "ai.document.retrieve" | "ai.document.analyze" | "ai.document.validate" | "ai.document.ask" | "ai.document.extract" | "pdf.action.plan" | "pdf.action.review" | "pdf.action.execute" | "pdf.action.validate" | "pdf.redaction.review" | "pdf.redaction.execute" | "pdf.redaction.validate" | "validation";
 
 export interface ImageCompressionWorkflow {
   input: ImageAsset;
@@ -90,6 +91,18 @@ export interface PdfAiWorkflow {
   query: string | null;
   processingBoundary: "browser-local-to-ai-gateway";
   steps: readonly { id: WorkflowStepId; operation?: AiOperation }[];
+}
+
+export interface PdfActionWorkflow {
+  input: PdfAsset;
+  plan: DocumentActionPlan;
+  processingBoundary: "browser-local";
+  steps: readonly { id: WorkflowStepId; operation?: string }[];
+}
+
+export function createPdfActionWorkflow(input: PdfAsset, plan: DocumentActionPlan): PdfActionWorkflow {
+  const hasRedaction = plan.actions.some((action) => action.actionType === "redact-region");
+  return { input, plan, processingBoundary: "browser-local", steps: [{ id: "pdf.action.plan" }, { id: hasRedaction ? "pdf.redaction.review" : "pdf.action.review" }, { id: hasRedaction ? "pdf.redaction.execute" : "pdf.action.execute" }, { id: hasRedaction ? "pdf.redaction.validate" : "pdf.action.validate" }, { id: "validation" }] };
 }
 
 export interface PdfCoreWorkflow {
