@@ -111,10 +111,13 @@ export function ConversionPanel({ currentFile, currentAsset, onContinueResult }:
       setImageInputs([]);
       setFormat("jpeg");
       setPdfPages("all");
-    } else {
+    } else if (currentAsset.category === "image") {
       setPdfInput(null);
       setImageInputs([{ file: currentFile, asset: currentAsset, source: sourceFromImage(currentFile, currentAsset, 0) }]);
       setFormat("pdf");
+    } else {
+      setPdfInput(null);
+      setImageInputs([]);
     }
     setPlan(null);
     setResult(null);

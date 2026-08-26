@@ -14,6 +14,7 @@ import {
   X,
 } from "lucide-react";
 import type { FileAsset, FileIntakeError, PdfAsset } from "./domain/files/types";
+import type { OfficeAsset } from "./domain/office/types";
 import type { PdfInspectionValidation } from "./domain/pdfs/types";
 import { formatBytes } from "./lib/file-utils";
 import { parseImageIntent, parsePdfIntent, type ParsedIntent } from "./domain/intents/parse-intent";
@@ -24,6 +25,7 @@ import { inspectFile } from "./features/intake/inspect-file";
 import { PDFJS_VERSION } from "./features/pdf/config";
 import { PdfPageWorkspace } from "./features/pdf/PdfPageWorkspace";
 import { PdfCoreTools } from "./features/pdf/PdfCoreTools";
+import { OfficeWorkspace } from "./features/office/OfficeWorkspace";
 import "./styles/tokens.css";
 import "./styles/app.css";
 
@@ -159,6 +161,10 @@ function App() {
       });
       return;
     }
+    if (asset.category === "office") {
+      setNotice({ title: "Office inspection is ready.", message: "Use the Office workspace below for bounded structure and text extraction. Office-to-PDF conversion is currently unavailable locally.", recovery: "Download the bounded TXT extraction or continue with a supported image/PDF conversion workflow." });
+      return;
+    }
     const parsed = parseImageIntent(goal);
     setIntent(parsed);
     if (parsed.status !== "valid" || !parsed.intent) {
@@ -258,10 +264,10 @@ function App() {
         <section className="hero-section">
           <div className="container hero-grid">
             <div>
-              <p className="eyebrow"><span className="eyebrow-line" /> Verified PDF intelligence</p>
+              <p className="eyebrow"><span className="eyebrow-line" /> Verified document intelligence</p>
               <h1>One file.<br /><span>One clear goal.</span></h1>
-              <p className="hero-lede">SmartDocs turns a human request into a verified result. Start with an image or PDF, describe whether you want conversion, optimization, understanding, or safe editing, and use measured browser-local tools. Files and PDF bytes stay local; only an explicit, bounded AI context can cross the optional gateway.</p>
-              <div className="hero-proof"><span><Check size={14} /> PDF bytes stay local</span><span><Check size={14} /> Actual byte check</span><span><Check size={14} /> Evidence-linked answers</span></div>
+              <p className="hero-lede">SmartDocs turns a human request into a verified result. Start with an image, PDF, or supported Office document, describe whether you want conversion, optimization, understanding, or safe editing, and use measured browser-local tools. Source files stay local; only an explicit, bounded AI context can cross the optional gateway.</p>
+              <div className="hero-proof"><span><Check size={14} /> Source bytes stay local</span><span><Check size={14} /> Bounded inspection</span><span><Check size={14} /> Evidence-linked answers</span></div>
             </div>
             <div className="hero-side-note"><span>01</span><p>Give the work a goal, not a tool name.</p><ArrowRight size={22} /></div>
           </div>
@@ -274,19 +280,19 @@ function App() {
                 <p className="eyebrow">The workspace</p>
                 <h2 id="workspace-title">What do you want to do<br /><span>with your file?</span></h2>
               </div>
-              <p className="section-intro">Describe an exact goal. SmartDocs parses common conversion settings locally, then offers measured PDF/image tools, safe document actions, and evidence-linked document intelligence without silently uploading the original.</p>
+              <p className="section-intro">Describe an exact goal. SmartDocs parses common conversion settings locally, inspects supported Office structure, and offers measured PDF/image tools, safe document actions, and evidence-linked intelligence without silently uploading the original.</p>
             </div>
 
             <div className="workflow-layout">
               <div className="workflow-card intake-card">
                 <div className="card-label"><span className="label-icon"><Upload size={15} /></span> 01 · Add a file</div>
-                <input ref={inputRef} className="file-picker-input" type="file" accept="image/jpeg,image/png,image/webp,application/pdf,.pdf" aria-label="Choose a JPEG, PNG, WebP image, or PDF" onChange={(event) => void handleFile(event.target.files?.[0])} />
+                <input ref={inputRef} className="file-picker-input" type="file" accept="image/jpeg,image/png,image/webp,application/pdf,.pdf,.docx,.docm,.doc,.pptx,.pptm,.ppt,.xlsx,.xlsm,.xls" aria-label="Choose a JPEG, PNG, WebP image, or PDF" onChange={(event) => void handleFile(event.target.files?.[0])} />
                 {!asset ? (
                   <div className="dropzone" role="button" tabIndex={0} onClick={() => inputRef.current?.click()} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") inputRef.current?.click(); }} onDragOver={(event) => event.preventDefault()} onDrop={handleDrop} data-testid="dropzone">
                     <span className="dropzone-icon"><FileImage size={25} /></span>
-                    <strong>{readingFile ? "Inspecting file…" : "Drop an image or PDF here"}</strong>
-                    <span>or choose a JPEG, PNG, WebP image, or PDF file</span>
-                    <small>Images: 25 MB · PDFs: 50 MB</small>
+                    <strong>{readingFile ? "Inspecting file…" : "Drop an image, PDF, or Office file here"}</strong>
+                    <span>or choose JPEG, PNG, WebP, PDF, DOCX, PPTX, or XLSX</span>
+                    <small>Images: 25 MB · PDFs/Office: 50 MB</small>
                   </div>
                 ) : (
                   asset.category === "image" ? <div className="asset-preview" data-testid="asset-preview">
@@ -296,26 +302,27 @@ function App() {
                       <span>{formatBytes(asset.sizeBytes)} · {asset.width} × {asset.height} · {asset.mimeType.replace("image/", "").toUpperCase()}</span>
                       <span className="local-badge"><LockKeyhole size={13} /> Stays in your browser</span>
                     </div>
-                  </div> : pdfFileRef.current ? <PdfAssetCard asset={asset} file={pdfFileRef.current} validation={pdfValidation} onReset={reset} /> : null
+                  </div> : asset.category === "office" ? <OfficeAssetCard asset={asset} onReset={reset} /> : pdfFileRef.current ? <PdfAssetCard asset={asset} file={pdfFileRef.current} validation={pdfValidation} onReset={reset} /> : null
                 )}
               </div>
 
               <div className="workflow-card goal-card">
                 <div className="card-label"><span className="label-icon violet"><WandSparkles size={15} /></span> 02 · Describe the goal</div>
                 <label htmlFor="goal-input" className="goal-label">What should happen to this file?</label>
-                <textarea id="goal-input" value={goal} onChange={(event) => handleGoalChange(event.target.value)} placeholder={asset?.category === "pdf" ? "e.g. compress this PDF under 2MB" : "e.g. make this image under 100KB"} rows={3} data-testid="goal-input" />
-                {asset?.category === "pdf" ? <div className="pdf-goal-note" role="status"><strong>PDF page operations are available.</strong><span>Use an exact target such as “compress this PDF under 2MB,” or choose a quality mode in Optimize PDF below. Text/vector content is preserved by default.</span></div> : <>
+                <textarea id="goal-input" value={goal} onChange={(event) => handleGoalChange(event.target.value)} placeholder={asset?.category === "pdf" ? "e.g. compress this PDF under 2MB" : asset?.category === "office" ? "e.g. extract all text from this Word file" : "e.g. make this image under 100KB"} rows={3} data-testid="goal-input" />
+                {asset?.category === "pdf" ? <div className="pdf-goal-note" role="status"><strong>PDF page operations are available.</strong><span>Use an exact target such as “compress this PDF under 2MB,” or choose a quality mode in Optimize PDF below. Text/vector content is preserved by default.</span></div> : asset?.category === "office" ? <div className="pdf-goal-note office-goal-note" role="status"><strong>Office intelligence is ready.</strong><span>SmartDocs can inspect bounded structure and extract text locally. Office-to-PDF conversion is explicitly unavailable until a faithful browser renderer is independently verified.</span></div> : <>
                   <div className="example-row" aria-label="Goal examples">
                     {examples.map((example) => <button key={example} type="button" onClick={() => handleGoalChange(example)}>{example}</button>)}
                   </div>
                   {intent?.status === "valid" && intent.intent ? <div className="intent-confirmation"><Check size={15} /> Target understood: ≤ {intent.intent.targetLabel}</div> : null}
                   <button className="primary-button" type="button" onClick={() => void runWorkflow()} disabled={isBusy} data-testid="run-workflow">{stage ? <><span className="spinner" /> {stageLabels[stage]}…</> : <><Sparkles size={17} /> Optimize locally <ArrowRight size={17} /></>}</button>
                 </>}
-                <p className="microcopy"><LockKeyhole size={13} /> {asset?.category === "pdf" ? "PDF inspection is processed locally in your browser." : "Your image never leaves this browser."}</p>
+                <p className="microcopy"><LockKeyhole size={13} /> {asset?.category === "pdf" ? "PDF inspection is processed locally in your browser." : asset?.category === "office" ? "Office package inspection is processed locally in your browser." : "Your image never leaves this browser."}</p>
               </div>
             </div>
 
             {asset?.category === "pdf" && pdfFileRef.current ? <PdfPageWorkspace file={pdfFileRef.current} asset={asset} requestedPageNumber={pdfNavigationRequest?.pageNumber} navigationRequestToken={pdfNavigationRequest?.token} /> : null}
+            {asset?.category === "office" ? <OfficeWorkspace asset={asset} /> : null}
             <PdfCoreTools currentFile={pdfFileRef.current} currentAsset={asset?.category === "pdf" ? asset : null} currentInputFile={currentFileRef.current} currentInputAsset={asset} onContinueResult={continueWithPdfResult} onNavigateToPage={navigateToPdfPage} />
             {originalPdf ? <div className="pdf-recovery-bar" role="status"><span><strong>Original PDF remains recoverable.</strong> Continue editing the current result or return to the untouched source.</span><button type="button" className="secondary-button" onClick={returnToOriginalPdf}><RotateCcw size={15} /> Return to original PDF</button></div> : null}
 
@@ -338,13 +345,18 @@ function App() {
         </section>
 
         <section id="roadmap" className="roadmap-section" aria-labelledby="roadmap-title">
-          <div className="container roadmap-grid"><div><p className="eyebrow">A measured roadmap</p><h2 id="roadmap-title">Build the foundation<br /><span>before the universe.</span></h2></div>      <div className="roadmap-list"><div className="roadmap-item"><span className="roadmap-marker" /><div><strong>Smart image optimizer</strong><p>Compression, resize recovery, and verified local results.</p></div><span className="roadmap-state">Done</span></div><div className="roadmap-item"><span className="roadmap-marker" /><div><strong>PDF core platform</strong><p>Local page operations, merge, split, conversion, blank-page review, and validated results.</p></div><span className="roadmap-state">Done</span></div><div className="roadmap-item"><span className="roadmap-marker" /><div><strong>Smart PDF optimization</strong><p>Target-size compression for scanned/image-heavy PDFs with quality modes, validation, progress, and recovery.</p></div><span className="roadmap-state">Done</span></div><div className="roadmap-item"><span className="roadmap-marker" /><div><strong>Browser-local OCR + document understanding</strong><p>Bundled English OCR, searchable-PDF authoring, local text search, deterministic structure signals, and preservation validation.</p></div><span className="roadmap-state">Done</span></div><div className="roadmap-item"><span className="roadmap-marker" /><div><strong>Evidence-backed AI document intelligence</strong><p>Bounded local context, deterministic retrieval, classification, summaries, extraction, Q&amp;A, structure views, explicit consent, and validated source-page navigation.</p></div><span className="roadmap-state">Done</span></div><div className="roadmap-item"><span className="roadmap-marker" /><div><strong>Safe document actions</strong><p>Reviewed action plans, local text-match redaction, annotations, crop and resize, metadata controls, validation, cancellation, recovery, and bounded undo/redo.</p></div><span className="roadmap-state">Done</span></div><div className="roadmap-item current"><span className="roadmap-marker" /><div><strong>Universal conversion engine</strong><p>Intent-first PDF/image conversion, ordered collections, page selection, quality and resolution controls, validated outputs, target-size measurement, previews, progress, cancellation, and chaining.</p></div><span className="roadmap-state">Now</span></div><div className="roadmap-item"><span className="roadmap-marker" /><div><strong>Beyond the Phase 8 boundary</strong><p>Universal office round-trips, ZIP packaging, object-level PDF compression, cloud conversion, autonomous actions, sharing, and account features remain intentionally out of scope.</p></div><span className="roadmap-state">Planned</span></div></div></div>
+          <div className="container roadmap-grid"><div><p className="eyebrow">A measured roadmap</p><h2 id="roadmap-title">Build the foundation<br /><span>before the universe.</span></h2></div>      <div className="roadmap-list"><div className="roadmap-item"><span className="roadmap-marker" /><div><strong>Smart image optimizer</strong><p>Compression, resize recovery, and verified local results.</p></div><span className="roadmap-state">Done</span></div><div className="roadmap-item"><span className="roadmap-marker" /><div><strong>PDF core platform</strong><p>Local page operations, merge, split, conversion, blank-page review, and validated results.</p></div><span className="roadmap-state">Done</span></div><div className="roadmap-item"><span className="roadmap-marker" /><div><strong>Smart PDF optimization</strong><p>Target-size compression for scanned/image-heavy PDFs with quality modes, validation, progress, and recovery.</p></div><span className="roadmap-state">Done</span></div><div className="roadmap-item"><span className="roadmap-marker" /><div><strong>Browser-local OCR + document understanding</strong><p>Bundled English OCR, searchable-PDF authoring, local text search, deterministic structure signals, and preservation validation.</p></div><span className="roadmap-state">Done</span></div><div className="roadmap-item"><span className="roadmap-marker" /><div><strong>Evidence-backed AI document intelligence</strong><p>Bounded local context, deterministic retrieval, classification, summaries, extraction, Q&amp;A, structure views, explicit consent, and validated source-page navigation.</p></div><span className="roadmap-state">Done</span></div><div className="roadmap-item"><span className="roadmap-marker" /><div><strong>Safe document actions</strong><p>Reviewed action plans, local text-match redaction, annotations, crop and resize, metadata controls, validation, cancellation, recovery, and bounded undo/redo.</p></div><span className="roadmap-state">Done</span></div><div className="roadmap-item"><span className="roadmap-marker" /><div><strong>Universal conversion engine</strong><p>Intent-first PDF/image conversion, ordered collections, page selection, quality and resolution controls, validated outputs, target-size measurement, previews, progress, cancellation, and chaining.</p></div><span className="roadmap-state">Done</span></div><div className="roadmap-item current"><span className="roadmap-marker" /><div><strong>Office document intelligence</strong><p>Browser-local DOCX/PPTX/XLSX intake, bounded OOXML inspection, Word structure, slide summaries, sheet/cell previews, TXT export, warnings, and honest conversion boundaries.</p></div><span className="roadmap-state">Now</span></div><div className="roadmap-item"><span className="roadmap-marker" /><div><strong>Beyond the Phase 9 boundary</strong><p>Faithful Office rendering and round-trips, Office-to-PDF conversion, ZIP packaging, object-level PDF compression, cloud conversion, autonomous actions, sharing, and account features remain intentionally out of scope.</p></div><span className="roadmap-state">Planned</span></div></div></div>
         </section>
       </main>
 
-      <footer className="site-footer"><div className="container footer-inner"><a className="brand footer-brand" href="#top" aria-label="Back to SmartDocs home"><span className="brand-mark" aria-hidden="true"><span /><span /><span /></span><span className="brand-name">SmartDocs</span></a><p>One file + one goal → one verified result.</p><span className="footer-phase">Phase 8 · Universal, validated file conversion</span></div></footer>
+      <footer className="site-footer"><div className="container footer-inner"><a className="brand footer-brand" href="#top" aria-label="Back to SmartDocs home"><span className="brand-mark" aria-hidden="true"><span /><span /><span /></span><span className="brand-name">SmartDocs</span></a><p>One file + one goal → one verified result.</p><span className="footer-phase">Phase 9 · Office document intelligence</span></div></footer>
     </div>
   );
+}
+
+function OfficeAssetCard({ asset, onReset }: { asset: OfficeAsset; onReset: () => void }) {
+  const typeLabel = asset.documentType === "word" ? "Word document" : asset.documentType === "presentation" ? "PowerPoint presentation" : asset.documentType === "spreadsheet" ? "Excel workbook" : "Office document";
+  return <div className="pdf-asset-card office-asset-card"><div className="pdf-preview-frame office-file-mark"><strong>.{asset.format.toUpperCase()}</strong><span>Office</span></div><div className="pdf-asset-info"><div><strong>{asset.name}</strong><button className="icon-button" type="button" onClick={onReset} aria-label="Remove Office file"><X size={16} /></button></div><span>{formatBytes(asset.sizeBytes)} · {typeLabel}</span><span>{asset.analysis.complexity} complexity · {asset.analysis.preservationRisk} preservation risk</span><span className="local-badge"><LockKeyhole size={13} /> Stays in your browser</span></div></div>;
 }
 
 function PdfAssetCard({ asset, file, validation, onReset }: { asset: PdfAsset; file: File; validation: PdfInspectionValidation | null; onReset: () => void }) {

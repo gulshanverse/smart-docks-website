@@ -1,4 +1,5 @@
 import type { ImageAsset, PdfAsset, ProcessingBoundary } from "../files/types";
+import type { OfficeAsset } from "../office/types";
 import { FIRST_PAGE_RENDER_SCALE, MAX_PDF_SAMPLE_PAGES, MAX_PDF_TEXT_CHARS } from "../../features/pdf/config";
 import type { ImageCompressionIntent } from "../intents/parse-intent";
 import type { PdfInspectionValidation } from "../pdfs/types";
@@ -11,7 +12,7 @@ import type { DocumentActionPlan } from "../actions/types";
 import type { ConversionPlan, ConversionResultSet, ConversionSource } from "../conversions/types";
 import type { DocumentSearchResult, DocumentStructureResult, OcrDocumentResult, OcrPlan } from "../ocr/types";
 
-export type WorkflowStepId = "conversion.intent.parse" | "conversion.capabilities" | "conversion.plan" | "conversion.preview" | "conversion.execute" | "conversion.validate" | "conversion.cleanup" | "conversion.history" | "image.compress.target_size" | "pdf.inspect" | "pdf.inspect.page" | "pdf.render.preview" | "pdf.delete.pages" | "pdf.extract.pages" | "pdf.reorder.pages" | "pdf.rotate.pages" | "pdf.merge" | "pdf.split" | "pdf.render.images" | "image.create.pdf" | "pdf.detect.blank_pages" | "pdf.remove.blank_pages" | "pdf.analyze.optimization" | "pdf.optimize.target_size" | "pdf.analyze.advanced" | "pdf.analyze.features" | "pdf.analyze.structure" | "pdf.extract.bounded_text" | "pdf.analyze.layout" | "pdf.analyze.ocr_readiness" | "pdf.plan.optimization" | "pdf.generate.candidates" | "pdf.validate.preservation" | "pdf.compare" | "intelligence.snapshot" | "pdf.ocr.inspect" | "pdf.ocr.plan" | "pdf.ocr.recognize" | "pdf.ocr.author" | "pdf.ocr.validate" | "pdf.reopen" | "pdf.text.extract" | "pdf.text.search" | "pdf.structure.analyze" | "pdf.document.classify" | "pdf.document.sensitive" | "pdf.document.summary" | "ai.document.prepare" | "ai.document.retrieve" | "ai.document.analyze" | "ai.document.validate" | "ai.document.ask" | "ai.document.extract" | "pdf.action.plan" | "pdf.action.review" | "pdf.action.execute" | "pdf.action.validate" | "pdf.redaction.review" | "pdf.redaction.execute" | "pdf.redaction.validate" | "validation";
+export type WorkflowStepId = "conversion.intent.parse" | "conversion.capabilities" | "conversion.plan" | "conversion.preview" | "conversion.execute" | "conversion.validate" | "conversion.cleanup" | "conversion.history" | "image.compress.target_size" | "pdf.inspect" | "pdf.inspect.page" | "pdf.render.preview" | "pdf.delete.pages" | "pdf.extract.pages" | "pdf.reorder.pages" | "pdf.rotate.pages" | "pdf.merge" | "pdf.split" | "pdf.render.images" | "image.create.pdf" | "pdf.detect.blank_pages" | "pdf.remove.blank_pages" | "pdf.analyze.optimization" | "pdf.optimize.target_size" | "pdf.analyze.advanced" | "pdf.analyze.features" | "pdf.analyze.structure" | "pdf.extract.bounded_text" | "pdf.analyze.layout" | "pdf.analyze.ocr_readiness" | "pdf.plan.optimization" | "pdf.generate.candidates" | "pdf.validate.preservation" | "pdf.compare" | "intelligence.snapshot" | "pdf.ocr.inspect" | "pdf.ocr.plan" | "pdf.ocr.recognize" | "pdf.ocr.author" | "pdf.ocr.validate" | "pdf.reopen" | "pdf.text.extract" | "pdf.text.search" | "pdf.structure.analyze" | "pdf.document.classify" | "pdf.document.sensitive" | "pdf.document.summary" | "ai.document.prepare" | "ai.document.retrieve" | "ai.document.analyze" | "ai.document.validate" | "ai.document.ask" | "ai.document.extract" | "pdf.action.plan" | "pdf.action.review" | "pdf.action.execute" | "pdf.action.validate" | "pdf.redaction.review" | "pdf.redaction.execute" | "pdf.redaction.validate" | "office.package.inspect" | "office.metadata.inspect" | "office.text.extract" | "office.structure.preview" | "office.sheet.preview" | "office.validate" | "office.conversion.unavailable" | "validation";
 
 export interface ImageCompressionWorkflow {
   input: ImageAsset;
@@ -92,6 +93,24 @@ export interface PdfAiWorkflow {
   query: string | null;
   processingBoundary: "browser-local-to-ai-gateway";
   steps: readonly { id: WorkflowStepId; operation?: AiOperation }[];
+}
+
+export type OfficeWorkflowOperation = "inspect" | "extract_text" | "preview" | "convert_to_pdf_unavailable";
+
+export interface OfficeWorkflow {
+  input: OfficeAsset;
+  operation: OfficeWorkflowOperation;
+  processingBoundary: "browser-local";
+  steps: readonly { id: WorkflowStepId; operation?: OfficeWorkflowOperation }[];
+}
+
+export function createOfficeWorkflow(input: OfficeAsset, operation: OfficeWorkflowOperation): OfficeWorkflow {
+  const previewStep: WorkflowStepId = input.format === "xlsx" ? "office.sheet.preview" : "office.structure.preview";
+  const step = (id: WorkflowStepId): { id: WorkflowStepId; operation?: OfficeWorkflowOperation } => ({ id, operation });
+  const steps: readonly { id: WorkflowStepId; operation?: OfficeWorkflowOperation }[] = operation === "convert_to_pdf_unavailable"
+    ? [step("office.conversion.unavailable")]
+    : [step("office.package.inspect"), step("office.metadata.inspect"), ...(operation === "extract_text" ? [step("office.text.extract")] : []), ...(operation === "preview" ? [step(previewStep)] : []), step("office.validate")];
+  return { input, operation, processingBoundary: "browser-local", steps };
 }
 
 export interface ConversionWorkflow {

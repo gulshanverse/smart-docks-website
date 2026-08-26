@@ -7,7 +7,7 @@ export type SupportedPdfMimeType = (typeof SUPPORTED_PDF_TYPES)[number];
 export const MAX_INPUT_BYTES = 25 * 1024 * 1024;
 export const MAX_PDF_INPUT_BYTES = 50 * 1024 * 1024;
 
-export type FileCategory = "image" | "pdf";
+export type FileCategory = "image" | "pdf" | "office";
 export type ProcessingBoundary = "browser-local" | "server-assisted";
 export type PdfClassification = "text" | "scanned" | "mixed" | "unknown" | "protected" | "invalid";
 export type PdfTextPresence = "detected" | "limited" | "not-detected" | "unknown";
@@ -56,7 +56,8 @@ export interface PdfAsset extends FileAssetBase {
   warnings: readonly string[];
 }
 
-export type FileAsset = ImageAsset | PdfAsset;
+import type { OfficeAsset } from "../office/types";
+export type FileAsset = ImageAsset | PdfAsset | OfficeAsset;
 
 export type FileIntakeErrorCode =
   | "unsupported-format"
@@ -66,7 +67,11 @@ export type FileIntakeErrorCode =
   | "invalid-pdf"
   | "decode-failure"
   | "pdf-protected"
-  | "pdf-preview-failure";
+  | "pdf-preview-failure"
+  | "invalid-office"
+  | "unsupported-office"
+  | "office-encrypted"
+  | "office-package-limit";
 
 export interface FileIntakeError {
   code: FileIntakeErrorCode;

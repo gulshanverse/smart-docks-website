@@ -36,13 +36,14 @@ import type { AiDocumentContext, AiOperationResult } from "../domain/ai/types";
 import { pageIdentity, type DocumentAction } from "../domain/actions/types";
 import { createUserAction, planDocumentActions } from "../domain/actions/planner";
 import { clampRect, viewportToPdf } from "../domain/actions/coordinates";
-import { createPdfActionWorkflow, createConversionWorkflow } from "../domain/workflows/types";
+import { createPdfActionWorkflow, createConversionWorkflow, createOfficeWorkflow } from "../domain/workflows/types";
 import { parseConversionIntent } from "../domain/intents/parse-intent";
 import { CONVERSION_CAPABILITIES, findImageConversionCapability } from "../domain/conversions/capabilities";
 import { createConversionPlan } from "../domain/conversions/planner";
 import { CONVERSION_CONTRACT_VERSION, type ConversionIntent, type ConversionSource } from "../domain/conversions/types";
 import { conversionFilename, pageConversionFilename, uniqueFilename } from "../domain/conversions/naming";
 import { hasImageSignature, hasPdfSignature as hasConversionPdfSignature, sizeDifferencePercent, targetAchieved, validateImageOutput, validatePdfOutput } from "../domain/conversions/validation";
+import type { OfficeAsset } from "../domain/office/types";
 
 describe("byte units", () => {
   it("uses decimal KB and MB values", () => {
@@ -707,5 +708,39 @@ describe("Phase 8 universal conversion domain", () => {
     const invalid = validatePdfOutput({ bytes: new Uint8Array([0x25]), actualPageCount: 2, expectedPageCount: 1, previewAvailable: false, plan: planned.plan });
     expect(valid.valid).toBe(true);
     expect(invalid.valid).toBe(false);
+  });
+});
+
+
+describe("Phase 9 Office workflow contracts", () => {
+  const officeAsset = { id: "office-test", name: "fixture.docx", sizeBytes: 100, extension: "docx", processingBoundary: "browser-local" as const, category: "office" as const, mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" as const, format: "docx" as const, documentType: "word" as const, analysis: {} as OfficeAsset["analysis"], warnings: [], capabilities: {} as OfficeAsset["capabilities"], validationStatus: "validated" as const, previewUrl: null };
+
+  it("maps preview, text extraction, and unavailable conversion to explicit local steps", () => {
+    expect(createOfficeWorkflow(officeAsset, "preview").steps.map((step) => step.id)).toEqual(["office.package.inspect", "office.metadata.inspect", "office.structure.preview", "office.validate"]);
+    expect(createOfficeWorkflow(officeAsset, "extract_text").steps.map((step) => step.id)).toContain("office.text.extract");
+    expect(createOfficeWorkflow(officeAsset, "convert_to_pdf_unavailable").steps.map((step) => step.id)).toEqual(["office.conversion.unavailable"]);
+  });
+});
+
+describe("Phase 9 Office package safety", () => {
+  it("reads bounded XML entries from a synthetic OOXML-like ZIP", async () => {
+    const { strToU8, zipSync } = await import("fflate");
+    const archive = zipSync({
+      "[Content_Types].xml": strToU8("<Types />"),
+      "word/document.xml": strToU8("<w:document xmlns:w=\"urn:test\"><w:p><w:t>Hello Office</w:t></w:p></w:document>"),
+    });
+    const file = new Blob([archive]) as unknown as File;
+    const { openOfficePackage } = await import("../features/office/office-package");
+    const pkg = await openOfficePackage(file, { maxInputBytes: 50_000, maxEntries: 10, maxEntryCompressedBytes: 10_000, maxEntryUncompressedBytes: 10_000, maxTotalUncompressedBytes: 20_000, maxXmlBytes: 10_000, maxTextCharacters: 2_000, maxRowsPerSheet: 30, maxSlides: 10 });
+    expect(pkg.has("word/document.xml")).toBe(true);
+    expect(pkg.readText("word/document.xml")).toContain("Hello Office");
+  });
+
+  it("rejects unsafe package paths before XML inspection", async () => {
+    const { strToU8, zipSync } = await import("fflate");
+    const archive = zipSync({ "../escape.xml": strToU8("<bad />") });
+    const file = new Blob([archive]) as unknown as File;
+    const { openOfficePackage } = await import("../features/office/office-package");
+    await expect(openOfficePackage(file, { maxInputBytes: 50_000, maxEntries: 10, maxEntryCompressedBytes: 10_000, maxEntryUncompressedBytes: 10_000, maxTotalUncompressedBytes: 20_000, maxXmlBytes: 10_000, maxTextCharacters: 2_000, maxRowsPerSheet: 30, maxSlides: 10 })).rejects.toThrow("unsafe entry path");
   });
 });
