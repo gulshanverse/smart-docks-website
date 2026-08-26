@@ -51,6 +51,12 @@ import { planCollectionWorkflow } from "../domain/collections/planner";
 import type { CollectionDocument } from "../domain/collections/types";
 import { WORKFLOW_CONTRACT_VERSION, buildWorkflowPlan, canTransitionWorkflowState, createWorkflowStep, evaluateWorkflowCondition, planWorkflowForAsset, planWorkflowForCollection, runBoundedScheduler, topologicalSort, transitionWorkflowState, validateWorkflowPlan, type WorkflowDefinition } from "../domain/workflows/orchestration";
 import { searchCollectionDocuments } from "../features/collections/search-collection";
+import { EXTRACTION_CONTRACT_VERSION } from "../domain/extraction/types";
+import { getSchemaForDocumentType } from "../domain/extraction/schemas";
+import { extractRecord } from "../domain/extraction/deterministic";
+import { exportExtractionResult } from "../domain/extraction/export";
+import { aggregateCollection, validateExtractionRecord, validateExtractionSchema } from "../domain/extraction/validation";
+import { planExtractionForDocuments } from "../features/extraction/planner";
 
 describe("byte units", () => {
   it("uses decimal KB and MB values", () => {
@@ -845,5 +851,67 @@ describe("Phase 12 workflow orchestration", () => {
     const result = await runBoundedScheduler([s1], async (s) => { executed.push(s.id); });
     expect(executed).toEqual(["s1"]);
     expect(result.completed).toContain("s1");
+  });
+});
+
+describe("Phase 13 structured extraction", () => {
+  const invoiceSchema = getSchemaForDocumentType("invoice");
+  const invoiceText = "Invoice Number: INV-2026-001\nInvoice Date: 2026-08-27\nVendor: Example Supplies\nVendor Email: billing@example.test\nCurrency: INR\nSubtotal: ₹10,000\nTax: ₹2,500\nTotal: ₹12,500";
+  const source = { documentId: "invoice-1", documentName: "invoice.txt", sourceId: "page-1", sourceType: "native-text" as const, pageNumber: 1, text: invoiceText };
+
+  it("validates the versioned schema contract and bounded fields", () => {
+    expect(invoiceSchema.contractVersion).toBe(EXTRACTION_CONTRACT_VERSION);
+    expect(validateExtractionSchema(invoiceSchema).valid).toBe(true);
+  });
+
+  it("extracts invoice fields deterministically with real evidence", () => {
+    const record = extractRecord(invoiceSchema, [source]);
+    const total = record.fields.find((field) => field.fieldId === "total");
+    expect(total?.normalizedValue).toBe(12500);
+    expect(total?.method).toBe("deterministic");
+    expect(total?.confidence).toBe("high");
+    expect(total?.evidence[0]?.pageNumber).toBe(1);
+    expect(total?.evidence[0]?.textExcerpt).toContain("Total");
+  });
+
+  it("keeps missing fields explicit and validates provenance", () => {
+    const record = extractRecord(invoiceSchema, [{ ...source, text: "Invoice Number: INV-ONLY" }]);
+    expect(record.fields.find((field) => field.fieldId === "total")?.status).toBe("missing");
+    const validation = validateExtractionRecord(record, invoiceSchema, new Set(["invoice-1"]));
+    expect(validation.valid).toBe(true);
+    expect(validation.warnings.some((warning) => warning.code === "missing-required-field")).toBe(true);
+  });
+
+  it("does not silently resolve collection duplicates or conflicts", () => {
+    const first = extractRecord(invoiceSchema, [source]);
+    const duplicate = extractRecord(invoiceSchema, [{ ...source, documentId: "invoice-2", documentName: "invoice-copy.txt" }]);
+    const conflicting = extractRecord(invoiceSchema, [{ ...source, documentId: "invoice-3", documentName: "invoice-other.txt", text: invoiceText.replace("INV-2026-001", "INV-2026-009").replace("₹12,500", "₹13,500") }]);
+    const result = aggregateCollection("collection-1", invoiceSchema, [first, duplicate, conflicting]);
+    expect(result.duplicateRecordIds).toContain("invoice-2");
+    expect(result.conflicts.some((conflict) => conflict.fieldId === "invoiceNumber")).toBe(true);
+    expect(result.status).toBe("conflict");
+  });
+
+  it("exports bounded validated records as JSON and CSV", () => {
+    const record = extractRecord(invoiceSchema, [source]);
+    const json = exportExtractionResult(record, "json");
+    const csv = exportExtractionResult(record, "csv");
+    expect(json.valid).toBe(true);
+    expect(json.content).toContain("INV-2026-001");
+    expect(csv.valid).toBe(true);
+    expect(csv.content.split("\\n")[0]).toContain("invoiceNumber");
+  });
+
+  it("plans text-native, OCR-required, and AI-assisted paths through Phase 12", () => {
+    const textPlan = planExtractionForDocuments([{ id: "text", name: "invoice.pdf", mimeType: "application/pdf", category: "pdf", textAvailable: true, scanned: false }], "extract invoice total");
+    expect(textPlan.extraction.requiresOcr).toBe(false);
+    expect(textPlan.workflow.steps.map((step) => step.capability)).not.toContain("document.extract.ocr");
+    const scannedPlan = planExtractionForDocuments([{ id: "scan", name: "scan.pdf", mimeType: "application/pdf", category: "pdf", textAvailable: false, scanned: true }], "extract invoice total");
+    expect(scannedPlan.extraction.requiresOcr).toBe(true);
+    expect(scannedPlan.workflow.steps.map((step) => step.capability)).toContain("document.extract.ocr");
+    const aiPlan = planExtractionForDocuments([{ id: "semantic", name: "contract.pdf", mimeType: "application/pdf", category: "pdf", textAvailable: true }], "use AI to interpret semantic relationships");
+    expect(aiPlan.extraction.requiresAi).toBe(true);
+    expect(aiPlan.workflow.processingBoundary).toBe("browser-local-to-ai-gateway");
+    expect(aiPlan.workflow.requiresConfirmation).toBe(true);
   });
 });

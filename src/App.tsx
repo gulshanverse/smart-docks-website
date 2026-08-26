@@ -32,6 +32,7 @@ import type { UnifiedWorkflowPlan, UnifiedWorkflowState } from "./domain/unified
 import { CollectionWorkspace } from "./features/collections/CollectionWorkspace";
 import { WorkflowWorkspace } from "./features/workflows/WorkflowWorkspace";
 import { runBoundedScheduler, type WorkflowPlan } from "./domain/workflows/orchestration";
+import { ExtractionWorkspace } from "./features/extraction/ExtractionWorkspace";
 import "./styles/tokens.css";
 import "./styles/app.css";
 
@@ -373,6 +374,7 @@ function App() {
             </div>
 
             <WorkflowWorkspace asset={asset} documents={[]} onGoalChange={handleGoalChange} onExecute={executeOrchestratedWorkflow} />
+            <ExtractionWorkspace asset={asset} onNavigateToPage={navigateToPdfPage} />
             {asset ? <UnifiedWorkspace asset={asset} goal={goal} state={unifiedState} plan={unifiedPlan} busy={isBusy} onGoalChange={handleGoalChange} onReview={reviewUnifiedPlan} onConfirm={() => void confirmUnifiedPlan()} onCancel={cancelUnifiedPlan} onResetPlan={() => { setUnifiedPlan(null); setUnifiedState("idle"); }} /> : null}
             <CollectionWorkspace onContinuePdf={continueWithPdfResult} />
             {asset?.category === "pdf" && pdfFileRef.current ? <PdfPageWorkspace file={pdfFileRef.current} asset={asset} requestedPageNumber={pdfNavigationRequest?.pageNumber} navigationRequestToken={pdfNavigationRequest?.token} /> : null}

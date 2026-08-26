@@ -1077,3 +1077,52 @@ textarea:focus { border-color: var(--sd-indigo); box-shadow: 0 0 0 4px rgba(70,8
   .node-connector { right: auto; left: 17px; bottom: -17px; transform: rotate(90deg); }
   .history-item { align-items: flex-start; flex-direction: column; }
 }
+
+/* Phase 13 structured extraction */
+.extraction-workspace { margin-top: 24px; padding: 28px; border: 1px solid var(--line, #e7e0d7); border-radius: 22px; background: rgba(255,255,255,.76); box-shadow: 0 18px 50px rgba(48,38,27,.06); }
+.extraction-heading { display: flex; justify-content: space-between; align-items: flex-start; gap: 24px; }
+.extraction-heading h3 { margin-bottom: 10px; font: 700 clamp(28px, 4vw, 44px)/1.04 Manrope, sans-serif; letter-spacing: -.055em; }
+.extraction-heading p:not(.eyebrow) { max-width: 650px; margin-bottom: 0; color: var(--sd-muted); font-size: 14px; }
+.extraction-stages { display: flex; flex-wrap: wrap; gap: 7px; margin: 22px 0; padding: 12px; border: 1px solid var(--sd-line); border-radius: 13px; background: #faf8f5; }
+.extraction-stages span { padding: 5px 8px; border-radius: 999px; color: #8b8178; font-size: .67rem; text-transform: uppercase; letter-spacing: .06em; }
+.extraction-stages span.active { background: var(--sd-indigo); color: #fff; }
+.extraction-stages span.done { color: #27704a; background: #e4f3e9; }
+.extraction-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+.extraction-input-card, .extraction-source-card { display: grid; align-content: start; gap: 10px; }
+.extraction-input-card select { width: 100%; padding: 12px 13px; border: 1px solid var(--sd-line-strong); border-radius: var(--sd-radius-sm); background: var(--sd-surface); color: var(--sd-ink); }
+.extraction-input-card .primary-button { margin-top: 5px; }
+.source-document-name { display: grid; gap: 3px; padding: 12px 13px; border-radius: 11px; background: #f8f5f0; }
+.source-document-name strong { color: var(--sd-ink); font: 700 14px Manrope, sans-serif; overflow-wrap: anywhere; }
+.source-document-name span { color: var(--sd-muted); font-size: 11px; }
+.extraction-plan-panel, .extraction-result-panel { margin-top: 18px; padding: 22px; border: 1px solid var(--sd-line-strong); border-radius: 17px; background: #fffdfb; }
+.extraction-step-row { display: flex; gap: 9px; overflow-x: auto; padding: 17px 1px; }
+.extraction-step { min-width: 145px; display: grid; gap: 5px; padding: 12px; border: 1px solid #ded5ed; border-radius: 12px; background: #f8f5ff; }
+.extraction-step span { display: grid; place-items: center; width: 23px; height: 23px; border-radius: 50%; background: var(--sd-violet); color: #fff; font-size: 11px; font-weight: 700; }
+.extraction-step strong { font-size: .78rem; text-transform: capitalize; }
+.extraction-step small { color: var(--sd-muted); font-size: .68rem; }
+.extraction-plan-panel .disclosure-grid { margin: 0 0 14px; }
+.extraction-run-button { max-width: 310px; margin-top: 12px; }
+.extraction-result-panel { background: var(--sd-ink); color: var(--sd-paper); }
+.extraction-result-panel .result-heading { margin-bottom: 18px; }
+.extraction-result-panel .result-heading h3 { margin-bottom: 0; color: var(--sd-paper); }
+.extraction-result-panel .eyebrow { color: #adb4ff; }
+.extraction-metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 9px; margin-bottom: 18px; }
+.extraction-metrics div { display: grid; gap: 4px; padding: 12px; border: 1px solid rgba(255,255,255,.12); border-radius: 11px; background: rgba(255,255,255,.06); }
+.extraction-metrics span { color: rgba(246,246,242,.55); font-size: .67rem; text-transform: uppercase; letter-spacing: .07em; }
+.extraction-metrics strong { color: #fff; font: 700 16px Manrope, sans-serif; }
+.field-list { display: grid; gap: 7px; }
+.field-row { width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 14px; padding: 12px 13px; border: 1px solid rgba(255,255,255,.12); border-radius: 10px; background: rgba(255,255,255,.05); color: var(--sd-paper); text-align: left; cursor: pointer; }
+.field-row:hover, .field-row.selected { border-color: #adb4ff; background: rgba(173,180,255,.13); }
+.field-row span { display: grid; gap: 3px; min-width: 0; }
+.field-row strong { font-size: .79rem; }
+.field-row small { color: rgba(246,246,242,.55); font-size: .68rem; text-transform: uppercase; }
+.field-row b { max-width: 55%; color: #dfe1ff; font-size: .76rem; overflow-wrap: anywhere; text-align: right; }
+.field-inspector { margin-top: 15px; padding: 16px; border: 1px solid rgba(173,180,255,.3); border-radius: 13px; background: rgba(173,180,255,.09); }
+.field-inspector h4 { margin-bottom: 12px; color: #fff; font: 700 20px Manrope, sans-serif; }
+.field-inspector dl { display: grid; gap: 8px; margin: 0 0 13px; }
+.field-inspector dl div { display: grid; grid-template-columns: 110px 1fr; gap: 10px; }
+.field-inspector dt { color: rgba(246,246,242,.56); font-size: .7rem; text-transform: uppercase; }
+.field-inspector dd { margin: 0; color: rgba(246,246,242,.88); font-size: .78rem; overflow-wrap: anywhere; }
+.extraction-result-panel .secondary-button { border-color: rgba(246,246,242,.24); color: var(--sd-paper); }
+.extraction-result-panel .secondary-button:hover { border-color: #adb4ff; background: rgba(173,180,255,.11); }
+@media (max-width: 720px) { .extraction-workspace { padding: 18px; border-radius: 17px; } .extraction-heading { flex-direction: column; } .extraction-grid { grid-template-columns: 1fr; } .extraction-metrics { grid-template-columns: repeat(2, 1fr); } .field-row { align-items: flex-start; flex-direction: column; } .field-row b { max-width: 100%; text-align: left; } .field-inspector dl div { grid-template-columns: 1fr; gap: 3px; } }
