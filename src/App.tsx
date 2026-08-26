@@ -30,6 +30,8 @@ import { UnifiedWorkspace } from "./features/unified/UnifiedWorkspace";
 import { planUnifiedWorkflow } from "./domain/unified/planner";
 import type { UnifiedWorkflowPlan, UnifiedWorkflowState } from "./domain/unified/types";
 import { CollectionWorkspace } from "./features/collections/CollectionWorkspace";
+import { WorkflowWorkspace } from "./features/workflows/WorkflowWorkspace";
+import { runBoundedScheduler, type WorkflowPlan } from "./domain/workflows/orchestration";
 import "./styles/tokens.css";
 import "./styles/app.css";
 
@@ -210,6 +212,19 @@ function App() {
     }
   }
 
+  async function executeOrchestratedWorkflow(plan: WorkflowPlan): Promise<void> {
+    const result = await runBoundedScheduler(plan.steps, async (step) => {
+      if (step.capability === "image.compress.target_size") {
+        const succeeded = await runWorkflow();
+        if (!succeeded) throw new Error("The image compression executor could not produce a validated result.");
+        return;
+      }
+      if (step.capability === "validation" || step.type === "inspect") return;
+      throw new Error(`The ${step.capability} executor is not available in this browser workflow yet.`);
+    }, { failurePolicy: plan.failurePolicy });
+    if (result.failed.length > 0 || result.blocked.length > 0) throw new Error("One or more workflow steps could not be executed. Original files remain unchanged.");
+  }
+
   function reviewUnifiedPlan() {
     if (!asset) return;
     setUnifiedState("planning");
@@ -357,6 +372,7 @@ function App() {
               </div>
             </div>
 
+            <WorkflowWorkspace asset={asset} documents={[]} onGoalChange={handleGoalChange} onExecute={executeOrchestratedWorkflow} />
             {asset ? <UnifiedWorkspace asset={asset} goal={goal} state={unifiedState} plan={unifiedPlan} busy={isBusy} onGoalChange={handleGoalChange} onReview={reviewUnifiedPlan} onConfirm={() => void confirmUnifiedPlan()} onCancel={cancelUnifiedPlan} onResetPlan={() => { setUnifiedPlan(null); setUnifiedState("idle"); }} /> : null}
             <CollectionWorkspace onContinuePdf={continueWithPdfResult} />
             {asset?.category === "pdf" && pdfFileRef.current ? <PdfPageWorkspace file={pdfFileRef.current} asset={asset} requestedPageNumber={pdfNavigationRequest?.pageNumber} navigationRequestToken={pdfNavigationRequest?.token} /> : null}

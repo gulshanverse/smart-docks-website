@@ -45,10 +45,11 @@ import { conversionFilename, pageConversionFilename, uniqueFilename } from "../d
 import { hasImageSignature, hasPdfSignature as hasConversionPdfSignature, sizeDifferencePercent, targetAchieved, validateImageOutput, validatePdfOutput } from "../domain/conversions/validation";
 import type { OfficeAsset } from "../domain/office/types";
 import { planUnifiedWorkflow, availableCapabilities } from "../domain/unified/planner";
-import { canTransition, transitionWorkflowState } from "../domain/unified/state";
+import { canTransition, transitionWorkflowState as transitionUnifiedState } from "../domain/unified/state";
 import { evaluateCollectionCompatibility, fingerprintFile, transitionCollectionState } from "../domain/collections/compatibility";
 import { planCollectionWorkflow } from "../domain/collections/planner";
 import type { CollectionDocument } from "../domain/collections/types";
+import { WORKFLOW_CONTRACT_VERSION, buildWorkflowPlan, canTransitionWorkflowState, createWorkflowStep, evaluateWorkflowCondition, planWorkflowForAsset, planWorkflowForCollection, runBoundedScheduler, topologicalSort, transitionWorkflowState, validateWorkflowPlan, type WorkflowDefinition } from "../domain/workflows/orchestration";
 import { searchCollectionDocuments } from "../features/collections/search-collection";
 
 describe("byte units", () => {
@@ -743,8 +744,8 @@ describe("Phase 10 unified workspace", () => {
 
   it("rejects impossible workflow state transitions", () => {
     expect(canTransition("review", "running")).toBe(false);
-    expect(() => transitionWorkflowState("cancelled", "completed")).toThrow(/Invalid workflow transition/);
-    expect(transitionWorkflowState("review", "awaiting-confirmation")).toBe("awaiting-confirmation");
+    expect(() => transitionUnifiedState("cancelled", "completed")).toThrow(/Invalid workflow transition/);
+    expect(transitionUnifiedState("review", "awaiting-confirmation")).toBe("awaiting-confirmation");
   });
 });
 
@@ -793,5 +794,56 @@ describe("Phase 9 Office package safety", () => {
     const file = new Blob([archive]) as unknown as File;
     const { openOfficePackage } = await import("../features/office/office-package");
     await expect(openOfficePackage(file, { maxInputBytes: 50_000, maxEntries: 10, maxEntryCompressedBytes: 10_000, maxEntryUncompressedBytes: 10_000, maxTotalUncompressedBytes: 20_000, maxXmlBytes: 10_000, maxTextCharacters: 2_000, maxRowsPerSheet: 30, maxSlides: 10 })).rejects.toThrow("unsafe entry path");
+  });
+});
+
+describe("Phase 12 workflow orchestration", () => {
+  const mockAsset = { id: "doc1", name: "test.pdf", sizeBytes: 1000, extension: "pdf", processingBoundary: "browser-local" as const, category: "pdf" as const, mimeType: "application/pdf" as const, pageCount: 1 };
+
+  it("topologically sorts steps and detects cycles", () => {
+    const s1 = createWorkflowStep({ id: "s1", type: "inspect", capability: "c1", inputs: [], dependencies: [], expectedOutputs: [], risk: "low", processingBoundary: "browser-local", validationPlan: [], provenance: { sourceDocumentIds: [], parentArtifactIds: [], originatingStepId: null, sourceType: "original", location: null, confidence: "high" }, failurePolicy: "fail_fast", retryPolicy: "never", cancellationPolicy: "cancellable", resourceClass: "light", requiresConfirmation: false });
+    const s2 = createWorkflowStep({ ...s1, id: "s2", dependencies: ["s1"] });
+    const s3 = createWorkflowStep({ ...s1, id: "s3", dependencies: ["s2"] });
+    expect(topologicalSort([s1, s2, s3])).toEqual(["s1", "s2", "s3"]);
+    expect(() => topologicalSort([s1, { ...s2, dependencies: ["s3"] }, s3])).toThrow(/cyclic/);
+  });
+
+  it("evaluates workflow conditions correctly", () => {
+    const condition = { source: "document.pageCount" as const, operator: "greater-than" as const, value: 5 };
+    expect(evaluateWorkflowCondition(condition, { "document.pageCount": 10 })).toBe(true);
+    expect(evaluateWorkflowCondition(condition, { "document.pageCount": 2 })).toBe(false);
+  });
+
+  it("rejects invalid workflow state transitions", () => {
+    expect(canTransitionWorkflowState("draft", "planned")).toBe(true);
+    expect(canTransitionWorkflowState("completed", "running")).toBe(false);
+    expect(() => transitionWorkflowState("cancelled", "completed")).toThrow(/Invalid workflow transition/);
+  });
+
+  it("plans single-asset workflows with deterministic chaining", () => {
+    const plan = planWorkflowForAsset(mockAsset as any, "OCR then optimize");
+    expect(plan.steps.map(s => s.capability)).toContain("pdf.ocr.recognize");
+    expect(plan.steps.map(s => s.capability)).toContain("pdf.optimize.target_size");
+    const ocr = plan.steps.find(s => s.capability === "pdf.ocr.recognize");
+    const opt = plan.steps.find(s => s.capability === "pdf.optimize.target_size");
+    expect(opt?.dependencies).toContain(ocr?.id);
+  });
+
+  it("adapts multi-document optimize goals into explicit FOR EACH steps", () => {
+    const documents = ["one", "two"].map((id, index) => ({ documentId: id, file: {} as File, originalFile: {} as File, asset: { id, name: `${id}.pdf`, sizeBytes: 1000, extension: "pdf", processingBoundary: "browser-local" as const, category: "pdf" as const, mimeType: "application/pdf" as const }, order: index, selected: true, duplicateOf: null, fingerprint: id }));
+    const plan = planWorkflowForCollection("collection-1", documents as any, "optimize each PDF below 1MB");
+    expect(plan.valid).toBe(true);
+    const foreachSteps = plan.steps.filter((step) => step.foreachDocumentIds);
+    expect(foreachSteps.length).toBeGreaterThan(0);
+    expect(foreachSteps[0]?.foreachDocumentIds).toEqual(["one"]);
+    expect(plan.steps.some((step) => step.dependencies.includes("one.inspect"))).toBe(true);
+  });
+
+  it("executes steps through a bounded scheduler", async () => {
+    const s1 = createWorkflowStep({ id: "s1", type: "inspect", capability: "c1", inputs: [], dependencies: [], expectedOutputs: [], risk: "low", processingBoundary: "browser-local", validationPlan: [], provenance: { sourceDocumentIds: [], parentArtifactIds: [], originatingStepId: null, sourceType: "original", location: null, confidence: "high" }, failurePolicy: "fail_fast", retryPolicy: "never", cancellationPolicy: "cancellable", resourceClass: "light", requiresConfirmation: false });
+    const executed: string[] = [];
+    const result = await runBoundedScheduler([s1], async (s) => { executed.push(s.id); });
+    expect(executed).toEqual(["s1"]);
+    expect(result.completed).toContain("s1");
   });
 });

@@ -1027,3 +1027,53 @@ textarea:focus { border-color: var(--sd-indigo); box-shadow: 0 0 0 4px rgba(70,8
 .collection-result-row, .history-row { display: flex; align-items: center; justify-content: space-between; gap: 15px; padding: 12px 0; border-top: 1px solid var(--sd-line); } .collection-result-row:first-of-type, .history-row:first-of-type { margin-top: 15px; } .collection-result-row > div { display: grid; gap: 3px; } .collection-result-row strong { color: var(--sd-ink); overflow-wrap: anywhere; } .collection-result-row span, .history-row small { color: var(--sd-muted); font-size: .77rem; } .collection-result-row .secondary-button { width: auto; min-height: 36px; padding: 0 12px; text-decoration: none; }
 .history-row span { display: inline-flex; align-items: center; gap: 7px; color: var(--sd-ink); font-weight: 700; } .history-row svg { color: var(--sd-success); }
 @media (max-width: 760px) { .collection-workspace { padding: 20px 16px; } .collection-heading { align-items: flex-start; flex-direction: column; } .collection-toolbar { align-items: stretch; flex-direction: column; } .collection-toolbar .file-picker-input, .collection-toolbar .secondary-button { width: 100%; max-width: none; } .collection-item { align-items: flex-start; } .collection-item-actions { flex-direction: column; } .collection-actions .primary-button, .collection-actions .secondary-button { width: 100%; } .collection-result-row, .history-row { align-items: flex-start; flex-direction: column; } .collection-result-row .secondary-button { width: 100%; } }
+
+/* Phase 12 workflow orchestration */
+.workflow-workspace { margin-top: 24px; padding: 28px; border: 1px solid var(--line, #e7e0d7); border-radius: 22px; background: rgba(255,255,255,.72); box-shadow: 0 18px 50px rgba(48,38,27,.06); }
+.workflow-workspace .workflow-heading, .workflow-workspace .collection-heading { display: flex; justify-content: space-between; gap: 20px; align-items: flex-start; }
+.workflow-workspace .workflow-layout { margin-top: 20px; }
+.collection-summary-card .summary-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 16px; }
+.summary-stats .stat { padding: 14px; border-radius: 14px; background: #f8f5f0; display: grid; gap: 3px; }
+.summary-stats strong { font-size: 1.1rem; color: #261e18; }
+.summary-stats span, .detail-item span, .disclosure-item span { font-size: .72rem; color: #86786d; text-transform: uppercase; letter-spacing: .08em; }
+.workflow-plan-container { margin-top: 24px; display: grid; gap: 18px; }
+.workflow-graph-view, .step-detail-panel, .privacy-disclosure-panel, .workflow-history { padding: 20px; border: 1px solid #e7e0d7; border-radius: 17px; background: #fffdfb; }
+.graph-header, .history-header, .detail-header, .disclosure-header { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.graph-timeline { display: flex; align-items: stretch; gap: 10px; overflow-x: auto; padding: 18px 2px 5px; }
+.graph-node { min-width: 155px; position: relative; display: flex; align-items: center; gap: 9px; padding: 13px; border: 1px solid #e6dfd6; border-radius: 14px; background: #faf8f5; cursor: pointer; transition: border-color .18s ease, transform .18s ease, box-shadow .18s ease; }
+.graph-node:hover, .graph-node:focus-visible, .graph-node.selected { border-color: #7e62c6; transform: translateY(-1px); box-shadow: 0 7px 18px rgba(88,65,149,.13); outline: none; }
+.node-marker { display: grid; place-items: center; flex: 0 0 26px; height: 26px; border-radius: 50%; color: #fff; background: #7359bb; font-size: .72rem; font-weight: 700; }
+.node-content { display: grid; gap: 5px; min-width: 0; }
+.node-content strong { font-size: .82rem; line-height: 1.2; text-transform: capitalize; }
+.node-content span { font-size: .68rem; color: #776c63; }
+.node-connector { position: absolute; right: -17px; color: #a69587; z-index: 1; }
+.step-detail-panel { background: #f8f5ff; }
+.detail-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 15px; }
+.detail-item { display: grid; gap: 5px; padding: 10px; border-radius: 10px; background: rgba(255,255,255,.72); }
+.detail-item strong { font-size: .8rem; word-break: break-word; }
+.detail-section { margin-top: 16px; display: grid; gap: 8px; }
+.detail-section > span { font-size: .73rem; color: #766a5f; text-transform: uppercase; letter-spacing: .08em; }
+.detail-section ul { display: grid; gap: 7px; margin: 0; padding: 0; list-style: none; font-size: .82rem; }
+.detail-section li { display: flex; align-items: flex-start; gap: 7px; }
+.privacy-disclosure-panel { background: #f1faf6; border-color: #cfe7d9; }
+.disclosure-header { justify-content: flex-start; color: #2b6d4c; font-weight: 700; font-size: .85rem; }
+.disclosure-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 15px; }
+.disclosure-item { display: grid; gap: 4px; }
+.disclosure-item strong { font-size: 1rem; color: #24583e; }
+.workflow-history { margin-top: 18px; }
+.history-list { display: grid; gap: 8px; margin-top: 12px; }
+.history-item { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 12px; background: #f8f5f0; }
+.history-main { min-width: 0; display: grid; gap: 4px; }
+.history-main strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .82rem; }
+.history-main span { font-size: .72rem; color: #81766e; }
+.history-state { border-radius: 999px; padding: 5px 9px; font-size: .68rem; text-transform: uppercase; letter-spacing: .07em; background: #e1f3e9; color: #28704a; }
+.workflow-warnings { margin-top: 14px; display: grid; gap: 7px; }
+@media (max-width: 720px) {
+  .workflow-workspace { padding: 18px; border-radius: 17px; }
+  .workflow-workspace .collection-heading { flex-direction: column; }
+  .collection-summary-card .summary-stats, .detail-grid, .disclosure-grid { grid-template-columns: repeat(2, 1fr); }
+  .graph-timeline { display: grid; overflow: visible; }
+  .graph-node { min-width: 0; }
+  .node-connector { right: auto; left: 17px; bottom: -17px; transform: rotate(90deg); }
+  .history-item { align-items: flex-start; flex-direction: column; }
+}
