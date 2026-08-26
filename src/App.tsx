@@ -16,7 +16,7 @@ import {
 import type { FileAsset, FileIntakeError, PdfAsset } from "./domain/files/types";
 import type { PdfInspectionValidation } from "./domain/pdfs/types";
 import { formatBytes } from "./lib/file-utils";
-import { parseImageIntent, type ParsedIntent } from "./domain/intents/parse-intent";
+import { parseImageIntent, parsePdfIntent, type ParsedIntent } from "./domain/intents/parse-intent";
 import { createImageCompressionWorkflow, createPdfInspectionWorkflow } from "./domain/workflows/types";
 import { validatePdfInspection } from "./domain/pdfs/validation";
 import { compressImage, type CompressionOutcome, type CompressionStage } from "./features/compression/compress-image";
@@ -56,6 +56,8 @@ function App() {
   const inputRef = useRef<HTMLInputElement>(null);
   const assetUrlRef = useRef<string | null>(null);
   const pdfFileRef = useRef<File | null>(null);
+  const originalPdfRef = useRef<{ file: File; asset: PdfAsset } | null>(null);
+  const [originalPdf, setOriginalPdf] = useState<{ file: File; asset: PdfAsset } | null>(null);
   const resultUrlsRef = useRef<string[]>([]);
   const [asset, setAsset] = useState<FileAsset | null>(null);
   const [pdfValidation, setPdfValidation] = useState<PdfInspectionValidation | null>(null);
@@ -85,9 +87,10 @@ function App() {
     assetUrlRef.current = null;
   }
 
-  async function handleFile(file: File | undefined) {
+  async function handleFile(file: File | undefined, options: { preserveOriginal?: boolean } = {}) {
     if (!file) return;
     releaseUrls();
+    if (!options.preserveOriginal) { originalPdfRef.current = null; setOriginalPdf(null); }
     pdfFileRef.current = null;
     setAsset(null);
     setPdfValidation(null);
@@ -143,10 +146,11 @@ function App() {
       return;
     }
     if (asset.category === "pdf") {
+      const parsed = parsePdfIntent(goal);
       setNotice({
-        title: "PDF inspection is ready.",
-        message: "PDF target-size compression is not available yet, but the PDF core tools are available below.",
-        recovery: "Use the document workspace for page operations, merge, split, conversion, and blank-page review.",
+        title: parsed.status === "valid" ? "PDF target understood." : "PDF optimization is ready.",
+        message: parsed.message,
+        recovery: "Use Optimize PDF below to analyze the document, choose a quality policy, and validate a browser-local result.",
       });
       return;
     }
@@ -186,8 +190,27 @@ function App() {
     void runWorkflow({ allowResize });
   }
 
+  function continueWithPdfResult(file: File, resultAsset: PdfAsset) {
+    if (pdfFileRef.current && asset?.category === "pdf" && !originalPdfRef.current) {
+      const snapshot = { file: pdfFileRef.current, asset };
+      originalPdfRef.current = snapshot;
+      setOriginalPdf(snapshot);
+    }
+    void handleFile(file, { preserveOriginal: true });
+  }
+
+  function returnToOriginalPdf() {
+    const snapshot = originalPdfRef.current;
+    if (!snapshot) return;
+    originalPdfRef.current = null;
+    setOriginalPdf(null);
+    void handleFile(snapshot.file);
+  }
+
   function reset() {
     releaseUrls();
+    originalPdfRef.current = null;
+    setOriginalPdf(null);
     pdfFileRef.current = null;
     setAsset(null);
     setPdfValidation(null);
@@ -268,8 +291,8 @@ function App() {
               <div className="workflow-card goal-card">
                 <div className="card-label"><span className="label-icon violet"><WandSparkles size={15} /></span> 02 · Describe the goal</div>
                 <label htmlFor="goal-input" className="goal-label">What should happen to this file?</label>
-                <textarea id="goal-input" value={goal} onChange={(event) => handleGoalChange(event.target.value)} placeholder={asset?.category === "pdf" ? "e.g. make this PDF under 2MB" : "e.g. make this image under 100KB"} rows={3} data-testid="goal-input" />
-                {asset?.category === "pdf" ? <div className="pdf-goal-note" role="status"><strong>PDF page operations are available.</strong><span>Select pages above to delete, extract, reorder, or rotate them into a new validated PDF. Compression and conversion remain unavailable.</span></div> : <>
+                <textarea id="goal-input" value={goal} onChange={(event) => handleGoalChange(event.target.value)} placeholder={asset?.category === "pdf" ? "e.g. compress this PDF under 2MB" : "e.g. make this image under 100KB"} rows={3} data-testid="goal-input" />
+                {asset?.category === "pdf" ? <div className="pdf-goal-note" role="status"><strong>PDF page operations are available.</strong><span>Use an exact target such as “compress this PDF under 2MB,” or choose a quality mode in Optimize PDF below. Text/vector content is preserved by default.</span></div> : <>
                   <div className="example-row" aria-label="Goal examples">
                     {examples.map((example) => <button key={example} type="button" onClick={() => handleGoalChange(example)}>{example}</button>)}
                   </div>
@@ -281,7 +304,8 @@ function App() {
             </div>
 
             {asset?.category === "pdf" && pdfFileRef.current ? <PdfPageWorkspace file={pdfFileRef.current} asset={asset} /> : null}
-            <PdfCoreTools currentFile={pdfFileRef.current} currentAsset={asset?.category === "pdf" ? asset : null} onContinueResult={(file) => void handleFile(file)} />
+            <PdfCoreTools currentFile={pdfFileRef.current} currentAsset={asset?.category === "pdf" ? asset : null} onContinueResult={continueWithPdfResult} />
+            {originalPdf ? <div className="pdf-recovery-bar" role="status"><span><strong>Original PDF remains recoverable.</strong> Continue editing the current result or return to the untouched source.</span><button type="button" className="secondary-button" onClick={returnToOriginalPdf}><RotateCcw size={15} /> Return to original PDF</button></div> : null}
 
             {notice ? <div className="notice" role="alert"><div className="notice-icon"><X size={17} /></div><div><strong>{notice.title}</strong><p>{notice.message}</p><span>{notice.recovery}</span></div></div> : null}
             {stage ? <div className="processing-strip" role="status" aria-live="polite"><span className="spinner" /><div><strong>{stageLabels[stage]}</strong><span>Working locally in your browser. No progress percentage is invented.</span></div><ChevronDown size={18} /></div> : null}
@@ -294,19 +318,19 @@ function App() {
           <div className="container">
             <div className="section-heading compact"><div><p className="eyebrow">How it works</p><h2 id="how-title">Simple on the outside.<br /><span>Measured underneath.</span></h2></div></div>
             <div className="steps-grid">
-              <article><span>01</span><h3>Understand the request</h3><p>The first parser handles common target-size phrases and converts KB/MB into exact decimal bytes.</p></article>
-              <article><span>02</span><h3>Try the lightest path</h3><p>The browser tries compression first, then evaluates the smallest useful dimension reduction only when the target needs it.</p></article>
+              <article><span>01</span><h3>Understand the request</h3><p>The deterministic parser handles common PDF target-size phrases and converts KB/MB into exact decimal bytes.</p></article>
+              <article><span>02</span><h3>Try the lightest path</h3><p>The browser analyzes the PDF type, preserves text/vector documents, and tests bounded image-quality candidates for scanned content.</p></article>
               <article><span>03</span><h3>Check before delivery</h3><p>The output is decoded again, its bytes and dimensions are verified, and only then is a download offered.</p></article>
             </div>
           </div>
         </section>
 
         <section id="roadmap" className="roadmap-section" aria-labelledby="roadmap-title">
-          <div className="container roadmap-grid"><div><p className="eyebrow">A measured roadmap</p><h2 id="roadmap-title">Build the foundation<br /><span>before the universe.</span></h2></div>      <div className="roadmap-list"><div className="roadmap-item current"><span className="roadmap-marker" /><div><strong>Smart image optimizer</strong><p>Compression, resize recovery, and verified local results.</p></div><span className="roadmap-state">Now</span></div><div className="roadmap-item current"><span className="roadmap-marker" /><div><strong>PDF core platform</strong><p>Local page operations, merge, split, conversion, blank-page review, and validated results.</p></div><span className="roadmap-state">Now</span></div><div className="roadmap-item"><span className="roadmap-marker" /><div><strong>PDF transformations and AI</strong><p>Compression, conversion, OCR, and planning remain future work.</p></div><span className="roadmap-state">Planned</span></div></div></div>
+          <div className="container roadmap-grid"><div><p className="eyebrow">A measured roadmap</p><h2 id="roadmap-title">Build the foundation<br /><span>before the universe.</span></h2></div>      <div className="roadmap-list"><div className="roadmap-item current"><span className="roadmap-marker" /><div><strong>Smart image optimizer</strong><p>Compression, resize recovery, and verified local results.</p></div><span className="roadmap-state">Now</span></div><div className="roadmap-item current"><span className="roadmap-marker" /><div><strong>PDF core platform</strong><p>Local page operations, merge, split, conversion, blank-page review, and validated results.</p></div><span className="roadmap-state">Done</span></div><div className="roadmap-item current"><span className="roadmap-marker" /><div><strong>Smart PDF optimization</strong><p>Target-size compression for scanned/image-heavy PDFs with quality modes, validation, progress, and recovery.</p></div><span className="roadmap-state">Now</span></div><div className="roadmap-item"><span className="roadmap-marker" /><div><strong>OCR, AI, and advanced PDF editing</strong><p>OCR, semantic extraction, translation, backend processing, and richer document editing remain future work.</p></div><span className="roadmap-state">Planned</span></div></div></div>
         </section>
       </main>
 
-      <footer className="site-footer"><div className="container footer-inner"><a className="brand footer-brand" href="#top" aria-label="Back to SmartDocs home"><span className="brand-mark" aria-hidden="true"><span /><span /><span /></span><span className="brand-name">SmartDocs</span></a><p>One file + one goal → one verified result.</p><span className="footer-phase">Phase 2 complete · PDF core platform</span></div></footer>
+      <footer className="site-footer"><div className="container footer-inner"><a className="brand footer-brand" href="#top" aria-label="Back to SmartDocs home"><span className="brand-mark" aria-hidden="true"><span /><span /><span /></span><span className="brand-name">SmartDocs</span></a><p>One file + one goal → one verified result.</p><span className="footer-phase">Phase 3 · Smart PDF optimization</span></div></footer>
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { formatBytes, reductionPercent } from "../lib/file-utils";
-import { parseByteTarget, parseImageIntent } from "../domain/intents/parse-intent";
+import { parseByteTarget, parseImageIntent, parsePdfIntent } from "../domain/intents/parse-intent";
 import { selectCandidate } from "../features/compression/select-candidate";
 import { qualityDecision, scaledDimensions } from "../features/compression/compress-image";
 import { MAX_PDF_INPUT_BYTES } from "../domain/files/types";
@@ -14,7 +14,8 @@ import { createDeletePlan, createExtractPlan, createReorderPlan, createRotatePla
 import { validatePdfMutationResult } from "../domain/pdfs/mutation-validation";
 import { classifyBlankPage, createBlankDetectionPlan, createBlankRemovalPlan, createImageToPdfPlan, createMergePlan, createPdfImagePlan, createSplitPlan, safeCoreFilename } from "../domain/pdfs/core";
 import { validateCorePdfOutput } from "../domain/pdfs/core-validation";
-import { createPdfCoreWorkflow } from "../domain/workflows/types";
+import { createPdfCoreWorkflow, createPdfOptimizationWorkflow } from "../domain/workflows/types";
+import { buildPdfOptimizationResult, createPdfOptimizationPlan, generateCandidateSpecs, qualityPolicy, selectBestPdfCandidate, type PdfOptimizationAnalysis } from "../domain/pdfs/optimization";
 
 describe("byte units", () => {
   it("uses decimal KB and MB values", () => {
@@ -245,6 +246,79 @@ describe("PDF core platform plans", () => {
     if (!("plan" in remove)) throw new Error("expected removal plan");
     expect(createPdfCoreWorkflow("remove_blank_pages", remove.plan).steps[1]).toMatchObject({ id: "pdf.remove.blank_pages", operation: "remove_blank_pages" });
     expect(validateCorePdfOutput({ operation: "merge", expectedPageCount: 3, actualPageCount: 3, previewAvailable: true, inputBytes: 100, outputBytes: 150, processingBoundary: "browser-local" })).toMatchObject({ valid: true, warnings: ["The generated PDF is larger than the input; no compression was applied."] });
+  });
+});
+
+describe("PDF optimization engine", () => {
+  const analysis: PdfOptimizationAnalysis = {
+    inputBytes: 1_000_000,
+    pageCount: 4,
+    pdfVersion: "1.7",
+    classification: "scanned",
+    textPresent: false,
+    rasterPresent: true,
+    imageHeavy: true,
+    sampledPages: [1, 2, 3, 4],
+    pagesAnalyzed: 4,
+    textPages: 0,
+    rasterPages: 4,
+    imageHeavyPages: 4,
+    sampledPagePixels: [],
+    optimizationOpportunities: ["image-quality", "image-resolution"],
+    warnings: [],
+    processingBoundary: "browser-local",
+  };
+
+  it("parses PDF target language using decimal KB and MB", () => {
+    expect(parsePdfIntent("compress under 5MB").intent?.targetBytes).toBe(5_000_000);
+    expect(parsePdfIntent("make this PDF less than 2 MB").intent?.targetBytes).toBe(2_000_000);
+    expect(parsePdfIntent("reduce to 500 KB").intent?.targetBytes).toBe(500_000);
+    expect(parsePdfIntent("keep it below 1.5MB").intent?.targetBytes).toBe(1_500_000);
+    expect(parsePdfIntent("compress this PDF").status).toBe("ambiguous");
+    expect(parsePdfIntent("make it tiny").status).toBe("ambiguous");
+  });
+
+  it("defines deterministic quality policies and a documented floor", () => {
+    expect(qualityPolicy("maximum")).toMatchObject({ quality: 0.9, resolutionScale: 1 });
+    expect(qualityPolicy("balanced")).toMatchObject({ quality: 0.78, resolutionScale: 0.78 });
+    expect(qualityPolicy("smallest")).toMatchObject({ quality: 0.56, resolutionScale: 0.48, qualityDecision: "best-effort" });
+  });
+
+  it("generates bounded policy-aware candidates", () => {
+    expect(generateCandidateSpecs("scanned", "balanced", false).length).toBeLessThanOrEqual(5);
+    expect(generateCandidateSpecs("mixed", "balanced", true)[0]).toMatchObject({ scope: "raster-only-pages", destructive: true });
+    expect(generateCandidateSpecs("text", "balanced", true)[0]).toMatchObject({ strategy: "original-preserved", destructive: false });
+  });
+
+  it("creates optimization plans and explicit workflow steps", () => {
+    const intent = parsePdfIntent("compress under 2MB");
+    if (!intent.intent) throw new Error("expected PDF intent");
+    const optimizationIntent = { ...intent.intent, mode: "balanced" as const };
+    const planned = createPdfOptimizationPlan(analysis, optimizationIntent, "preserve");
+    if (!("plan" in planned)) throw new Error("expected optimization plan");
+    expect(planned.plan.targetBytes).toBe(2_000_000);
+    expect(planned.plan.processingBoundary).toBe("browser-local");
+    const workflow = createPdfOptimizationWorkflow({ id: "pdf", category: "pdf", name: "fixture.pdf", sizeBytes: 1_000_000, extension: "pdf", processingBoundary: "browser-local", mimeType: "application/pdf", pdfVersion: "1.7", pageCount: 4, encrypted: false, passwordProtected: false, textPresence: "not-detected", textExtractable: false, classification: "scanned", pageDimensions: null, previewUrl: null, capabilities: { inspect: true, renderPreview: true }, warnings: [] }, optimizationIntent, planned.plan);
+    expect(workflow.steps.map((step) => step.id)).toEqual(["pdf.inspect", "pdf.analyze.optimization", "pdf.optimize.target_size", "validation", "pdf.render.preview"]);
+  });
+
+  it("ranks only valid candidates by target and quality policy", () => {
+    const candidates = generateCandidateSpecs("scanned", "balanced", false);
+    const ranked = candidates.map((candidate, index) => ({ candidate, valid: true, outputBytes: [900_000, 650_000, 450_000][index] ?? 300_000, pageCount: 4, textPagesPreserved: true, previewAvailable: true, targetAchieved: true, warnings: [] }));
+    expect(selectBestPdfCandidate(ranked, 700_000, 1_000_000)?.outputBytes).toBe(650_000);
+    expect(selectBestPdfCandidate(ranked, 100_000, 1_000_000)?.outputBytes).toBe(900_000);
+    expect(selectBestPdfCandidate(ranked.map((item) => ({ ...item, valid: false })), 700_000, 1_000_000)).toBeNull();
+  });
+
+  it("builds target-achieved, preserved, and best-effort result states", () => {
+    const candidate = generateCandidateSpecs("scanned", "balanced", false)[0];
+    const achieved = buildPdfOptimizationResult({ inputBytes: 1_000_000, targetBytes: 700_000, pageCount: 4, candidate: { candidate, valid: true, outputBytes: 650_000, pageCount: 4, textPagesPreserved: true, previewAvailable: true, targetAchieved: true, warnings: [] }, analysis, filename: "fixture-optimized.pdf", candidateCount: 3 });
+    expect(achieved.targetAchieved).toBe(true);
+    expect(achieved.reductionPercentage).toBe(35);
+    const bestEffort = buildPdfOptimizationResult({ inputBytes: 1_000_000, targetBytes: 100_000, pageCount: 4, candidate: { candidate, valid: true, outputBytes: 650_000, pageCount: 4, textPagesPreserved: true, previewAvailable: true, targetAchieved: false, warnings: [] }, analysis, filename: "fixture-optimized.pdf", candidateCount: 3 });
+    expect(bestEffort.targetAchieved).toBe(false);
+    expect(bestEffort.bestEffort).toBe(true);
+    expect(bestEffort.message).toContain("could not be reached");
   });
 });
 

@@ -1,6 +1,6 @@
 import type { SupportedImageMimeType, SupportedPdfMimeType } from "../files/types";
 
-export type ToolId = "image.compress.target_size" | "pdf.inspect" | "pdf.inspect.page" | "pdf.render.preview" | "pdf.delete.pages" | "pdf.extract.pages" | "pdf.reorder.pages" | "pdf.rotate.pages" | "pdf.merge" | "pdf.split" | "pdf.render.images" | "image.create.pdf" | "pdf.detect.blank_pages" | "pdf.remove.blank_pages";
+export type ToolId = "image.compress.target_size" | "pdf.inspect" | "pdf.inspect.page" | "pdf.render.preview" | "pdf.delete.pages" | "pdf.extract.pages" | "pdf.reorder.pages" | "pdf.rotate.pages" | "pdf.merge" | "pdf.split" | "pdf.render.images" | "image.create.pdf" | "pdf.detect.blank_pages" | "pdf.remove.blank_pages" | "pdf.analyze.optimization" | "pdf.optimize.target_size";
 export type ToolInputCategory = "image" | "pdf";
 
 export interface ToolDefinition {
@@ -143,6 +143,26 @@ export const pdfRemoveBlankPagesTool: ToolDefinition = {
   batchSupport: false,
 };
 
+export const pdfAnalyzeOptimizationTool: ToolDefinition = {
+  id: "pdf.analyze.optimization",
+  inputCategory: "pdf",
+  outputCategory: "pdf",
+  supportedFormats: ["application/pdf"],
+  parameters: ["pageCount", "classification", "imageHeavyPages", "optimizationOpportunities"],
+  processingBoundary: "browser-local",
+  batchSupport: false,
+};
+
+export const pdfOptimizeTargetSizeTool: ToolDefinition = {
+  id: "pdf.optimize.target_size",
+  inputCategory: "pdf",
+  outputCategory: "pdf",
+  supportedFormats: ["application/pdf"],
+  parameters: ["targetBytes", "qualityMode", "metadataPolicy", "qualityFloor"],
+  processingBoundary: "browser-local",
+  batchSupport: false,
+};
+
 export const pdfPreviewTool: ToolDefinition = {
   id: "pdf.render.preview",
   inputCategory: "pdf",
@@ -153,4 +173,4 @@ export const pdfPreviewTool: ToolDefinition = {
   batchSupport: false,
 };
 
-export const toolRegistry = [imageTargetCompressionTool, pdfInspectTool, pdfPageInspectTool, pdfPreviewTool, pdfDeletePagesTool, pdfExtractPagesTool, pdfReorderPagesTool, pdfRotatePagesTool, pdfMergeTool, pdfSplitTool, pdfRenderImagesTool, imageCreatePdfTool, pdfDetectBlankPagesTool, pdfRemoveBlankPagesTool] as const;
+export const toolRegistry = [imageTargetCompressionTool, pdfInspectTool, pdfPageInspectTool, pdfPreviewTool, pdfDeletePagesTool, pdfExtractPagesTool, pdfReorderPagesTool, pdfRotatePagesTool, pdfMergeTool, pdfSplitTool, pdfRenderImagesTool, imageCreatePdfTool, pdfDetectBlankPagesTool, pdfRemoveBlankPagesTool, pdfAnalyzeOptimizationTool, pdfOptimizeTargetSizeTool] as const;

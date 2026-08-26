@@ -4,8 +4,9 @@ import type { ImageCompressionIntent } from "../intents/parse-intent";
 import type { PdfInspectionValidation } from "../pdfs/types";
 import type { PdfOperationPlan, PdfOperationType } from "../pdfs/operations";
 import type { ImageToPdfPlan, PdfBlankDetectionPlan, PdfBlankRemovalPlan, PdfImageRenderPlan, PdfMergePlan, PdfSplitPlan, PdfCoreOperation } from "../pdfs/core";
+import type { PdfOptimizationIntent, PdfOptimizationPlan } from "../pdfs/optimization";
 
-export type WorkflowStepId = "image.compress.target_size" | "pdf.inspect" | "pdf.inspect.page" | "pdf.render.preview" | "pdf.delete.pages" | "pdf.extract.pages" | "pdf.reorder.pages" | "pdf.rotate.pages" | "pdf.merge" | "pdf.split" | "pdf.render.images" | "image.create.pdf" | "pdf.detect.blank_pages" | "pdf.remove.blank_pages" | "validation";
+export type WorkflowStepId = "image.compress.target_size" | "pdf.inspect" | "pdf.inspect.page" | "pdf.render.preview" | "pdf.delete.pages" | "pdf.extract.pages" | "pdf.reorder.pages" | "pdf.rotate.pages" | "pdf.merge" | "pdf.split" | "pdf.render.images" | "image.create.pdf" | "pdf.detect.blank_pages" | "pdf.remove.blank_pages" | "pdf.analyze.optimization" | "pdf.optimize.target_size" | "validation";
 
 export interface ImageCompressionWorkflow {
   input: ImageAsset;
@@ -37,6 +38,20 @@ export interface PdfMutationWorkflow {
     { id: "pdf.delete.pages" | "pdf.extract.pages" | "pdf.reorder.pages" | "pdf.rotate.pages"; operation: PdfOperationType },
     { id: "pdf.render.preview"; pageNumber: 1; renderScale: number },
     { id: "validation" },
+  ];
+}
+
+export interface PdfOptimizationWorkflow {
+  input: PdfAsset;
+  intent: PdfOptimizationIntent;
+  plan: PdfOptimizationPlan;
+  processingBoundary: "browser-local";
+  steps: readonly [
+    { id: "pdf.inspect" },
+    { id: "pdf.analyze.optimization" },
+    { id: "pdf.optimize.target_size" },
+    { id: "validation" },
+    { id: "pdf.render.preview"; pageNumber: 1; renderScale: number },
   ];
 }
 
@@ -92,6 +107,22 @@ export function createPdfMutationWorkflow(input: PdfAsset, plan: PdfOperationPla
       { id: operationId, operation: plan.operation.type },
       { id: "pdf.render.preview", pageNumber: 1, renderScale: FIRST_PAGE_RENDER_SCALE },
       { id: "validation" },
+    ],
+  };
+}
+
+export function createPdfOptimizationWorkflow(input: PdfAsset, intent: PdfOptimizationIntent, plan: PdfOptimizationPlan): PdfOptimizationWorkflow {
+  return {
+    input,
+    intent,
+    plan,
+    processingBoundary: "browser-local",
+    steps: [
+      { id: "pdf.inspect" },
+      { id: "pdf.analyze.optimization" },
+      { id: "pdf.optimize.target_size" },
+      { id: "validation" },
+      { id: "pdf.render.preview", pageNumber: 1, renderScale: FIRST_PAGE_RENDER_SCALE },
     ],
   };
 }
