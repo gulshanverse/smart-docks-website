@@ -56,6 +56,7 @@ function App() {
   const inputRef = useRef<HTMLInputElement>(null);
   const assetUrlRef = useRef<string | null>(null);
   const pdfFileRef = useRef<File | null>(null);
+  const currentFileRef = useRef<File | null>(null);
   const originalPdfRef = useRef<{ file: File; asset: PdfAsset } | null>(null);
   const [originalPdf, setOriginalPdf] = useState<{ file: File; asset: PdfAsset } | null>(null);
   const resultUrlsRef = useRef<string[]>([]);
@@ -94,6 +95,7 @@ function App() {
     releaseUrls();
     if (!options.preserveOriginal) { originalPdfRef.current = null; setOriginalPdf(null); }
     pdfFileRef.current = null;
+    currentFileRef.current = null;
     setAsset(null);
     setPdfValidation(null);
     setOutcome(null);
@@ -108,6 +110,7 @@ function App() {
         return;
       }
       assetUrlRef.current = result.previewUrl;
+      currentFileRef.current = file;
       pdfFileRef.current = result.category === "pdf" ? file : null;
 
       if (result.category === "pdf") {
@@ -219,6 +222,7 @@ function App() {
     originalPdfRef.current = null;
     setOriginalPdf(null);
     pdfFileRef.current = null;
+    currentFileRef.current = null;
     setAsset(null);
     setPdfValidation(null);
     setGoal("");
@@ -256,7 +260,7 @@ function App() {
             <div>
               <p className="eyebrow"><span className="eyebrow-line" /> Verified PDF intelligence</p>
               <h1>One file.<br /><span>One clear goal.</span></h1>
-              <p className="hero-lede">SmartDocs turns a human request into a verified result. Start with a real image or PDF, describe the goal, and use preservation-first tools plus evidence-backed document understanding. Files and PDF bytes stay local; only an explicit, bounded AI context can cross the optional gateway.</p>
+              <p className="hero-lede">SmartDocs turns a human request into a verified result. Start with an image or PDF, describe whether you want conversion, optimization, understanding, or safe editing, and use measured browser-local tools. Files and PDF bytes stay local; only an explicit, bounded AI context can cross the optional gateway.</p>
               <div className="hero-proof"><span><Check size={14} /> PDF bytes stay local</span><span><Check size={14} /> Actual byte check</span><span><Check size={14} /> Evidence-linked answers</span></div>
             </div>
             <div className="hero-side-note"><span>01</span><p>Give the work a goal, not a tool name.</p><ArrowRight size={22} /></div>
@@ -270,7 +274,7 @@ function App() {
                 <p className="eyebrow">The workspace</p>
                 <h2 id="workspace-title">What do you want to do<br /><span>with your file?</span></h2>
               </div>
-              <p className="section-intro">Describe an exact goal. SmartDocs understands the file locally first, then offers measured PDF tools and evidence-linked document intelligence without silently uploading the original.</p>
+              <p className="section-intro">Describe an exact goal. SmartDocs parses common conversion settings locally, then offers measured PDF/image tools, safe document actions, and evidence-linked document intelligence without silently uploading the original.</p>
             </div>
 
             <div className="workflow-layout">
@@ -312,7 +316,7 @@ function App() {
             </div>
 
             {asset?.category === "pdf" && pdfFileRef.current ? <PdfPageWorkspace file={pdfFileRef.current} asset={asset} requestedPageNumber={pdfNavigationRequest?.pageNumber} navigationRequestToken={pdfNavigationRequest?.token} /> : null}
-            <PdfCoreTools currentFile={pdfFileRef.current} currentAsset={asset?.category === "pdf" ? asset : null} onContinueResult={continueWithPdfResult} onNavigateToPage={navigateToPdfPage} />
+            <PdfCoreTools currentFile={pdfFileRef.current} currentAsset={asset?.category === "pdf" ? asset : null} currentInputFile={currentFileRef.current} currentInputAsset={asset} onContinueResult={continueWithPdfResult} onNavigateToPage={navigateToPdfPage} />
             {originalPdf ? <div className="pdf-recovery-bar" role="status"><span><strong>Original PDF remains recoverable.</strong> Continue editing the current result or return to the untouched source.</span><button type="button" className="secondary-button" onClick={returnToOriginalPdf}><RotateCcw size={15} /> Return to original PDF</button></div> : null}
 
             {notice ? <div className="notice" role="alert"><div className="notice-icon"><X size={17} /></div><div><strong>{notice.title}</strong><p>{notice.message}</p><span>{notice.recovery}</span></div></div> : null}
@@ -334,11 +338,11 @@ function App() {
         </section>
 
         <section id="roadmap" className="roadmap-section" aria-labelledby="roadmap-title">
-          <div className="container roadmap-grid"><div><p className="eyebrow">A measured roadmap</p><h2 id="roadmap-title">Build the foundation<br /><span>before the universe.</span></h2></div>      <div className="roadmap-list"><div className="roadmap-item"><span className="roadmap-marker" /><div><strong>Smart image optimizer</strong><p>Compression, resize recovery, and verified local results.</p></div><span className="roadmap-state">Done</span></div><div className="roadmap-item"><span className="roadmap-marker" /><div><strong>PDF core platform</strong><p>Local page operations, merge, split, conversion, blank-page review, and validated results.</p></div><span className="roadmap-state">Done</span></div><div className="roadmap-item"><span className="roadmap-marker" /><div><strong>Smart PDF optimization</strong><p>Target-size compression for scanned/image-heavy PDFs with quality modes, validation, progress, and recovery.</p></div><span className="roadmap-state">Done</span></div><div className="roadmap-item"><span className="roadmap-marker" /><div><strong>Browser-local OCR + document understanding</strong><p>Bundled English OCR, searchable-PDF authoring, local text search, deterministic structure signals, and preservation validation.</p></div><span className="roadmap-state">Done</span></div><div className="roadmap-item"><span className="roadmap-marker" /><div><strong>Evidence-backed AI document intelligence</strong><p>Bounded local context, deterministic retrieval, classification, summaries, extraction, Q&amp;A, structure views, explicit consent, and validated source-page navigation.</p></div><span className="roadmap-state">Done</span></div><div className="roadmap-item current"><span className="roadmap-marker" /><div><strong>Safe document actions</strong><p>Reviewed action plans, local text-match redaction, annotations, crop and resize, metadata controls, validation, cancellation, recovery, and bounded undo/redo.</p></div><span className="roadmap-state">Now</span></div><div className="roadmap-item"><span className="roadmap-marker" /><div><strong>Beyond the Phase 7 boundary</strong><p>Universal PDF object editing, forensic sanitization guarantees, autonomous actions, rich office editing, sharing, and account features remain intentionally out of scope.</p></div><span className="roadmap-state">Planned</span></div></div></div>
+          <div className="container roadmap-grid"><div><p className="eyebrow">A measured roadmap</p><h2 id="roadmap-title">Build the foundation<br /><span>before the universe.</span></h2></div>      <div className="roadmap-list"><div className="roadmap-item"><span className="roadmap-marker" /><div><strong>Smart image optimizer</strong><p>Compression, resize recovery, and verified local results.</p></div><span className="roadmap-state">Done</span></div><div className="roadmap-item"><span className="roadmap-marker" /><div><strong>PDF core platform</strong><p>Local page operations, merge, split, conversion, blank-page review, and validated results.</p></div><span className="roadmap-state">Done</span></div><div className="roadmap-item"><span className="roadmap-marker" /><div><strong>Smart PDF optimization</strong><p>Target-size compression for scanned/image-heavy PDFs with quality modes, validation, progress, and recovery.</p></div><span className="roadmap-state">Done</span></div><div className="roadmap-item"><span className="roadmap-marker" /><div><strong>Browser-local OCR + document understanding</strong><p>Bundled English OCR, searchable-PDF authoring, local text search, deterministic structure signals, and preservation validation.</p></div><span className="roadmap-state">Done</span></div><div className="roadmap-item"><span className="roadmap-marker" /><div><strong>Evidence-backed AI document intelligence</strong><p>Bounded local context, deterministic retrieval, classification, summaries, extraction, Q&amp;A, structure views, explicit consent, and validated source-page navigation.</p></div><span className="roadmap-state">Done</span></div><div className="roadmap-item"><span className="roadmap-marker" /><div><strong>Safe document actions</strong><p>Reviewed action plans, local text-match redaction, annotations, crop and resize, metadata controls, validation, cancellation, recovery, and bounded undo/redo.</p></div><span className="roadmap-state">Done</span></div><div className="roadmap-item current"><span className="roadmap-marker" /><div><strong>Universal conversion engine</strong><p>Intent-first PDF/image conversion, ordered collections, page selection, quality and resolution controls, validated outputs, target-size measurement, previews, progress, cancellation, and chaining.</p></div><span className="roadmap-state">Now</span></div><div className="roadmap-item"><span className="roadmap-marker" /><div><strong>Beyond the Phase 8 boundary</strong><p>Universal office round-trips, ZIP packaging, object-level PDF compression, cloud conversion, autonomous actions, sharing, and account features remain intentionally out of scope.</p></div><span className="roadmap-state">Planned</span></div></div></div>
         </section>
       </main>
 
-      <footer className="site-footer"><div className="container footer-inner"><a className="brand footer-brand" href="#top" aria-label="Back to SmartDocs home"><span className="brand-mark" aria-hidden="true"><span /><span /><span /></span><span className="brand-name">SmartDocs</span></a><p>One file + one goal → one verified result.</p><span className="footer-phase">Phase 7 · Safe, reviewable document actions</span></div></footer>
+      <footer className="site-footer"><div className="container footer-inner"><a className="brand footer-brand" href="#top" aria-label="Back to SmartDocs home"><span className="brand-mark" aria-hidden="true"><span /><span /><span /></span><span className="brand-name">SmartDocs</span></a><p>One file + one goal → one verified result.</p><span className="footer-phase">Phase 8 · Universal, validated file conversion</span></div></footer>
     </div>
   );
 }

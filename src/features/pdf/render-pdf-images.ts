@@ -8,14 +8,23 @@ import { MAX_PDF_INPUT_BYTES } from "../../domain/files/types";
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
 const RASTER_OPERATORS = new Set<number>([pdfjsLib.OPS.paintImageMaskXObject, pdfjsLib.OPS.paintImageXObject, pdfjsLib.OPS.paintInlineImageXObject]);
 
-export interface PdfImageOutput { pageNumber: number; filename: string; blob: Blob; bytes: number; format: PdfImageFormat; }
+export interface PdfImageOutput { pageNumber: number; filename: string; blob: Blob; bytes: number; format: PdfImageFormat; width: number; height: number; }
+
+export interface PdfImageRenderOptions { signal?: AbortSignal; onProgress?: (completed: number, total: number) => void; maxDimension?: number; }
 
 function mime(format: PdfImageFormat): string { return format === "jpg" ? "image/jpeg" : format === "webp" ? "image/webp" : "image/png"; }
 function extension(format: PdfImageFormat): string { return format === "jpg" ? "jpg" : format; }
-function scaleFor(plan: PdfImageRenderPlan): number { return plan.resolution === "high" ? 1.8 : 1.15; }
-function safeName(name: string, pageNumber: number, format: PdfImageFormat): string {
+function scaleFor(plan: PdfImageRenderPlan): number {
+  if (plan.resolution === "300dpi") return 4.17;
+  if (plan.resolution === "200dpi") return 2.78;
+  if (plan.resolution === "150dpi") return 2.08;
+  if (plan.resolution === "high") return 1.8;
+  return plan.resolution === "screen" ? 1.15 : 1.15;
+}
+function safeName(name: string, pageNumber: number, format: PdfImageFormat, totalPageCount: number): string {
   const base = name.replace(/\.[^.]+$/, "").replace(/[^a-z0-9_-]+/gi, "-").replace(/^-+|-+$/g, "") || "document";
-  return `${base}-page-${pageNumber}.${extension(format)}`;
+  const width = Math.max(3, String(totalPageCount).length);
+  return `${base}-page-${String(pageNumber).padStart(width, "0")}.${extension(format)}`;
 }
 
 async function openPdf(file: File) {
@@ -35,7 +44,7 @@ async function openPdf(file: File) {
   }
 }
 
-async function renderCanvas(page: any, scale: number, maxDimension: number): Promise<{ canvas: HTMLCanvasElement; context: CanvasRenderingContext2D }> {
+async function renderCanvas(page: any, scale: number, maxDimension: number, signal?: AbortSignal): Promise<{ canvas: HTMLCanvasElement; context: CanvasRenderingContext2D }> {
   const initial = page.getViewport({ scale });
   const fit = Math.min(1, maxDimension / Math.max(initial.width, initial.height));
   const viewport = page.getViewport({ scale: scale * fit });
@@ -44,23 +53,34 @@ async function renderCanvas(page: any, scale: number, maxDimension: number): Pro
   canvas.height = Math.max(1, Math.ceil(viewport.height));
   const context = canvas.getContext("2d", { willReadFrequently: true });
   if (!context) throw new Error("render-canvas-unavailable");
-  await page.render({ canvas: null, canvasContext: context, viewport }).promise;
+  if (signal?.aborted) throw new DOMException("The conversion was cancelled.", "AbortError");
+  const renderTask = page.render({ canvas: null, canvasContext: context, viewport });
+  const cancel = () => renderTask.cancel();
+  signal?.addEventListener("abort", cancel, { once: true });
+  try {
+    await renderTask.promise;
+  } finally {
+    signal?.removeEventListener("abort", cancel);
+  }
   return { canvas, context };
 }
 
-export async function renderPdfImages(file: File, plan: PdfImageRenderPlan): Promise<PdfImageOutput[]> {
+export async function renderPdfImages(file: File, plan: PdfImageRenderPlan, options: PdfImageRenderOptions = {}): Promise<PdfImageOutput[]> {
   const { pdf, task } = await openPdf(file);
   const outputs: PdfImageOutput[] = [];
   try {
-    for (const pageNumber of plan.pageNumbers) {
+    for (let index = 0; index < plan.pageNumbers.length; index += 1) {
+      const pageNumber = plan.pageNumbers[index];
+      if (options.signal?.aborted) throw new DOMException("The conversion was cancelled.", "AbortError");
       if (pageNumber < 1 || pageNumber > pdf.numPages) throw new Error(`Page ${pageNumber} is outside this PDF.`);
       const page = await pdf.getPage(pageNumber);
       let canvas: HTMLCanvasElement | null = null;
       try {
-        const rendered = await renderCanvas(page, scaleFor(plan), 1800);
+        const rendered = await renderCanvas(page, scaleFor(plan), options.maxDimension ?? 1800, options.signal);
         canvas = rendered.canvas;
         const blob = await new Promise<Blob>((resolve, reject) => canvas?.toBlob((value) => value ? resolve(value) : reject(new Error("image-encode-failure")), mime(plan.format), plan.format === "png" ? undefined : 0.9));
-        outputs.push({ pageNumber, filename: safeName(file.name, pageNumber, plan.format), blob, bytes: blob.size, format: plan.format });
+        outputs.push({ pageNumber, filename: safeName(file.name, pageNumber, plan.format, pdf.numPages), blob, bytes: blob.size, format: plan.format, width: canvas.width, height: canvas.height });
+        options.onProgress?.(index + 1, plan.pageNumbers.length);
       } finally {
         if (canvas) { canvas.width = 0; canvas.height = 0; }
         page.cleanup();

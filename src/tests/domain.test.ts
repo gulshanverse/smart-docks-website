@@ -36,7 +36,13 @@ import type { AiDocumentContext, AiOperationResult } from "../domain/ai/types";
 import { pageIdentity, type DocumentAction } from "../domain/actions/types";
 import { createUserAction, planDocumentActions } from "../domain/actions/planner";
 import { clampRect, viewportToPdf } from "../domain/actions/coordinates";
-import { createPdfActionWorkflow } from "../domain/workflows/types";
+import { createPdfActionWorkflow, createConversionWorkflow } from "../domain/workflows/types";
+import { parseConversionIntent } from "../domain/intents/parse-intent";
+import { CONVERSION_CAPABILITIES, findImageConversionCapability } from "../domain/conversions/capabilities";
+import { createConversionPlan } from "../domain/conversions/planner";
+import { CONVERSION_CONTRACT_VERSION, type ConversionIntent, type ConversionSource } from "../domain/conversions/types";
+import { conversionFilename, pageConversionFilename, uniqueFilename } from "../domain/conversions/naming";
+import { hasImageSignature, hasPdfSignature as hasConversionPdfSignature, sizeDifferencePercent, targetAchieved, validateImageOutput, validatePdfOutput } from "../domain/conversions/validation";
 
 describe("byte units", () => {
   it("uses decimal KB and MB values", () => {
@@ -612,5 +618,94 @@ describe("Phase 7 safe document actions", () => {
     const planned = planDocumentActions(documentId, 2, [action]);
     expect("plan" in planned).toBe(true);
     if ("plan" in planned) expect(createPdfActionWorkflow({ id: documentId, name: "fixture.pdf", sizeBytes: 1, extension: "pdf", category: "pdf", mimeType: "application/pdf", processingBoundary: "browser-local", pdfVersion: "1.7", pageCount: 2, encrypted: false, passwordProtected: false, textPresence: "detected", textExtractable: true, classification: "text", pageDimensions: null, previewUrl: null, capabilities: { inspect: true, renderPreview: true }, warnings: [] }, planned.plan).steps.map((step) => step.id)).toEqual(["pdf.action.plan", "pdf.redaction.review", "pdf.redaction.execute", "pdf.redaction.validate", "validation"]);
+  });
+});
+
+
+describe("Phase 8 universal conversion domain", () => {
+  const pdfSource: ConversionSource = { id: "pdf-1", name: "document.pdf", inputFormat: "pdf", mimeType: "application/pdf", sizeBytes: 20_000, width: 595, height: 842, pageCount: 10, order: 0 };
+  const imageSource = (id: string, name: string, mimeType: "image/jpeg" | "image/png" | "image/webp", order: number): ConversionSource => ({ id, name, inputFormat: "image", mimeType, sizeBytes: 12_000, width: 1200, height: 800, pageCount: null, order });
+  const imageToPdfIntent: ConversionIntent = { targetFormat: "pdf", targetSize: null, pageSelection: { kind: "all", value: null }, quality: null, resolution: null, pageSize: null, orientation: null, fitMode: null, marginPoints: null, background: null };
+
+  it("parses common PDF and image conversion goals without hidden defaults", () => {
+    expect(parseConversionIntent("convert this PDF to JPG")).toMatchObject({ status: "valid", intent: { targetFormat: "jpeg", pageSelection: { kind: "all" }, quality: null } });
+    expect(parseConversionIntent("convert pages 2-5 to png under 500 KB per page")).toMatchObject({ status: "valid", intent: { targetFormat: "png", pageSelection: { kind: "range", value: "2-5" }, targetSize: { scope: "per-file", bytes: 500_000 } } });
+    expect(parseConversionIntent("make one PDF from these images")).toMatchObject({ status: "valid", intent: { targetFormat: "pdf" } });
+    expect(parseConversionIntent("convert this").status).toBe("ambiguous");
+  });
+
+  it("exposes only implemented capabilities and recognizes all supported image paths", () => {
+    expect(CONVERSION_CAPABILITIES.length).toBeGreaterThanOrEqual(10);
+    expect(findImageConversionCapability("image/jpeg", "png")?.id).toBe("image.convert.jpeg_to_png");
+    expect(findImageConversionCapability("image/png", "jpeg")?.id).toBe("image.convert.png_to_jpeg");
+    expect(findImageConversionCapability("image/webp", "png")?.id).toBe("image.convert.webp_to_png");
+    expect(findImageConversionCapability("image/png", "pdf")?.id).toBe("image.convert.to_pdf");
+  });
+
+  it("creates bounded PDF-page plans with explicit priority and defaults", () => {
+    const parsed = parseConversionIntent("convert pages 2-5 to jpg under 500KB per page");
+    if (!parsed.intent) throw new Error("expected conversion intent");
+    const planned = createConversionPlan([pdfSource], parsed.intent);
+    expect(planned).toMatchObject({ plan: { contractVersion: CONVERSION_CONTRACT_VERSION, operation: "pdf-to-image", outputFormat: "jpeg", resolution: "150dpi", pageSelection: { pageNumbers: [2, 3, 4, 5] }, targetSize: { scope: "per-file", bytes: 500_000 } } });
+    expect("error" in planned).toBe(false);
+  });
+
+  it("creates ordered image-collection PDF plans with visible smart defaults", () => {
+    const planned = createConversionPlan([imageSource("a", "first.png", "image/png", 0), imageSource("b", "second.jpg", "image/jpeg", 1)], imageToPdfIntent);
+    expect(planned).toMatchObject({ plan: { operation: "image-to-pdf", inputFormat: "image-collection", outputFormat: "pdf", pageSize: "A4", orientation: "auto", fitMode: "contain", marginPoints: 18, ordering: ["a", "b"] } });
+  });
+
+  it("rejects unsafe combinations, oversized batches, and invalid page selections", () => {
+    const conflict = createConversionPlan([imageSource("a", "first.png", "image/png", 0)], { ...imageToPdfIntent, targetFormat: "jpeg", background: "transparent" });
+    expect(conflict).toMatchObject({ error: { code: "conflict" } });
+    const invalidPage = createConversionPlan([pdfSource], { ...imageToPdfIntent, targetFormat: "png", pageSelection: { kind: "range", value: "11" } });
+    expect(invalidPage).toMatchObject({ error: { code: "invalid-selection" } });
+    const tooMany = createConversionPlan(Array.from({ length: 21 }, (_, index) => imageSource(String(index), `${index}.jpg`, "image/jpeg", index)), imageToPdfIntent);
+    expect(tooMany).toMatchObject({ error: { code: "workload-limit" } });
+  });
+
+  it("keeps output names safe and collision-free", () => {
+    expect(conversionFilename("folder/Quarterly report.pdf", "jpeg")).toBe("Quarterly-report.jpg");
+    expect(pageConversionFilename("report.pdf", 2, 12, "png")).toBe("report-page-002.png");
+    const used = new Set(["photo.jpg", "photo-2.jpg"]);
+    expect(uniqueFilename("photo.jpg", used)).toBe("photo-3.jpg");
+  });
+
+  it("checks image and PDF signatures and measured validation fields", () => {
+    const jpeg = new Uint8Array([0xff, 0xd8, 0xff, 0x00]);
+    const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+    const webp = new Uint8Array([0x52, 0x49, 0x46, 0x46, 0x00, 0x00, 0x00, 0x00, 0x57, 0x45, 0x42, 0x50]);
+    expect(hasImageSignature(jpeg, "jpeg")).toBe(true);
+    expect(hasImageSignature(png, "png")).toBe(true);
+    expect(hasImageSignature(webp, "webp")).toBe(true);
+    expect(hasConversionPdfSignature(new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d, 0x31]))).toBe(true);
+    expect(validateImageOutput({ bytes: jpeg, mimeType: "image/jpeg", width: 100, height: 80, expectedFormat: "jpeg" }).valid).toBe(true);
+    expect(validateImageOutput({ bytes: jpeg, mimeType: "image/png", width: 100, height: 80, expectedFormat: "jpeg" }).valid).toBe(false);
+  });
+
+  it("reports target state and size growth honestly", () => {
+    const planResult = createConversionPlan([imageSource("a", "photo.jpg", "image/jpeg", 0)], { ...imageToPdfIntent, targetFormat: "jpeg", targetSize: { scope: "per-file", bytes: 10_000, label: "10 KB" } });
+    expect("error" in planResult).toBe(false);
+    if ("error" in planResult) throw new Error("expected plan");
+    expect(targetAchieved(9_000, planResult.plan)).toBe(true);
+    expect(targetAchieved(11_000, planResult.plan)).toBe(false);
+    expect(sizeDifferencePercent(100, 125)).toBe(25);
+  });
+
+  it("records the complete conversion workflow and preserves local processing", () => {
+    const planned = createConversionPlan([pdfSource], { ...imageToPdfIntent, targetFormat: "png" });
+    if (!("plan" in planned)) throw new Error("expected plan");
+    const workflow = createConversionWorkflow(planned.plan);
+    expect(workflow.processingBoundary).toBe("browser-local");
+    expect(workflow.steps.map((step) => step.id)).toEqual(["conversion.intent.parse", "conversion.capabilities", "conversion.plan", "conversion.preview", "conversion.execute", "conversion.validate", "conversion.cleanup", "conversion.history"]);
+  });
+
+  it("validates PDF results only with signature, reopen preview, page count, and local plan", () => {
+    const planned = createConversionPlan([imageSource("a", "photo.jpg", "image/jpeg", 0)], imageToPdfIntent);
+    if (!("plan" in planned)) throw new Error("expected plan");
+    const valid = validatePdfOutput({ bytes: new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d]), actualPageCount: 1, expectedPageCount: 1, previewAvailable: true, plan: planned.plan });
+    const invalid = validatePdfOutput({ bytes: new Uint8Array([0x25]), actualPageCount: 2, expectedPageCount: 1, previewAvailable: false, plan: planned.plan });
+    expect(valid.valid).toBe(true);
+    expect(invalid.valid).toBe(false);
   });
 });

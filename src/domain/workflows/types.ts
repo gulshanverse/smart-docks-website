@@ -8,9 +8,10 @@ import type { PdfOptimizationIntent, PdfOptimizationPlan } from "../pdfs/optimiz
 import type { DocumentIntelligenceSnapshot, PdfAdvancedOptimizationPlan, PdfDocumentAnalysis } from "../pdfs/document-analysis";
 import type { AiOperation } from "../ai/types";
 import type { DocumentActionPlan } from "../actions/types";
+import type { ConversionPlan, ConversionResultSet, ConversionSource } from "../conversions/types";
 import type { DocumentSearchResult, DocumentStructureResult, OcrDocumentResult, OcrPlan } from "../ocr/types";
 
-export type WorkflowStepId = "image.compress.target_size" | "pdf.inspect" | "pdf.inspect.page" | "pdf.render.preview" | "pdf.delete.pages" | "pdf.extract.pages" | "pdf.reorder.pages" | "pdf.rotate.pages" | "pdf.merge" | "pdf.split" | "pdf.render.images" | "image.create.pdf" | "pdf.detect.blank_pages" | "pdf.remove.blank_pages" | "pdf.analyze.optimization" | "pdf.optimize.target_size" | "pdf.analyze.advanced" | "pdf.analyze.features" | "pdf.analyze.structure" | "pdf.extract.bounded_text" | "pdf.analyze.layout" | "pdf.analyze.ocr_readiness" | "pdf.plan.optimization" | "pdf.generate.candidates" | "pdf.validate.preservation" | "pdf.compare" | "intelligence.snapshot" | "pdf.ocr.inspect" | "pdf.ocr.plan" | "pdf.ocr.recognize" | "pdf.ocr.author" | "pdf.ocr.validate" | "pdf.reopen" | "pdf.text.extract" | "pdf.text.search" | "pdf.structure.analyze" | "pdf.document.classify" | "pdf.document.sensitive" | "pdf.document.summary" | "ai.document.prepare" | "ai.document.retrieve" | "ai.document.analyze" | "ai.document.validate" | "ai.document.ask" | "ai.document.extract" | "pdf.action.plan" | "pdf.action.review" | "pdf.action.execute" | "pdf.action.validate" | "pdf.redaction.review" | "pdf.redaction.execute" | "pdf.redaction.validate" | "validation";
+export type WorkflowStepId = "conversion.intent.parse" | "conversion.capabilities" | "conversion.plan" | "conversion.preview" | "conversion.execute" | "conversion.validate" | "conversion.cleanup" | "conversion.history" | "image.compress.target_size" | "pdf.inspect" | "pdf.inspect.page" | "pdf.render.preview" | "pdf.delete.pages" | "pdf.extract.pages" | "pdf.reorder.pages" | "pdf.rotate.pages" | "pdf.merge" | "pdf.split" | "pdf.render.images" | "image.create.pdf" | "pdf.detect.blank_pages" | "pdf.remove.blank_pages" | "pdf.analyze.optimization" | "pdf.optimize.target_size" | "pdf.analyze.advanced" | "pdf.analyze.features" | "pdf.analyze.structure" | "pdf.extract.bounded_text" | "pdf.analyze.layout" | "pdf.analyze.ocr_readiness" | "pdf.plan.optimization" | "pdf.generate.candidates" | "pdf.validate.preservation" | "pdf.compare" | "intelligence.snapshot" | "pdf.ocr.inspect" | "pdf.ocr.plan" | "pdf.ocr.recognize" | "pdf.ocr.author" | "pdf.ocr.validate" | "pdf.reopen" | "pdf.text.extract" | "pdf.text.search" | "pdf.structure.analyze" | "pdf.document.classify" | "pdf.document.sensitive" | "pdf.document.summary" | "ai.document.prepare" | "ai.document.retrieve" | "ai.document.analyze" | "ai.document.validate" | "ai.document.ask" | "ai.document.extract" | "pdf.action.plan" | "pdf.action.review" | "pdf.action.execute" | "pdf.action.validate" | "pdf.redaction.review" | "pdf.redaction.execute" | "pdf.redaction.validate" | "validation";
 
 export interface ImageCompressionWorkflow {
   input: ImageAsset;
@@ -91,6 +92,18 @@ export interface PdfAiWorkflow {
   query: string | null;
   processingBoundary: "browser-local-to-ai-gateway";
   steps: readonly { id: WorkflowStepId; operation?: AiOperation }[];
+}
+
+export interface ConversionWorkflow {
+  sourceFiles: readonly ConversionSource[];
+  plan: ConversionPlan;
+  result?: ConversionResultSet;
+  processingBoundary: "browser-local";
+  steps: readonly { id: WorkflowStepId; operation?: ConversionPlan["operation"] }[];
+}
+
+export function createConversionWorkflow(plan: ConversionPlan, result?: ConversionResultSet): ConversionWorkflow {
+  return { sourceFiles: plan.sourceFiles, plan, result, processingBoundary: "browser-local", steps: [{ id: "conversion.intent.parse" }, { id: "conversion.capabilities" }, { id: "conversion.plan", operation: plan.operation }, { id: "conversion.preview", operation: plan.operation }, { id: "conversion.execute", operation: plan.operation }, { id: "conversion.validate", operation: plan.operation }, { id: "conversion.cleanup", operation: plan.operation }, { id: "conversion.history", operation: plan.operation }] };
 }
 
 export interface PdfActionWorkflow {

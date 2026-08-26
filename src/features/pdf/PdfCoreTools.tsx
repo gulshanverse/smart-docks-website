@@ -4,6 +4,7 @@ const PdfOptimizationPanel = lazy(() => import("./PdfOptimizationPanel").then((m
 const PdfOcrPanel = lazy(() => import("../ocr/PdfOcrPanel").then((module) => ({ default: module.PdfOcrPanel })));
 const AiDocumentPanel = lazy(() => import("../ai/AiDocumentPanel").then((module) => ({ default: module.AiDocumentPanel })));
 const PdfActionsPanel = lazy(() => import("./PdfActionsPanel").then((module) => ({ default: module.PdfActionsPanel })));
+const ConversionPanel = lazy(() => import("../conversion/ConversionPanel").then((module) => ({ default: module.ConversionPanel })));
 import type { PdfAsset } from "../../domain/files/types";
 import { createBlankDetectionPlan, createBlankRemovalPlan, createImageToPdfPlan, createMergePlan, createPdfImagePlan, createSplitPlan, type BlankPageSignals, type PdfImageFormat, type PdfImageResolution, type PdfMetadataSnapshot } from "../../domain/pdfs/core";
 import { validateCorePdfOutput, type CorePdfValidation } from "../../domain/pdfs/core-validation";
@@ -14,12 +15,12 @@ import { mutatePdf } from "./mutate-pdf";
 import type { PdfImageOutput } from "./render-pdf-images";
 import type { CorePdfOutput } from "./core-operations";
 
-interface PdfCoreToolsProps { currentFile: File | null; currentAsset: PdfAsset | null; onContinueResult?: (file: File, asset: PdfAsset) => void; onNavigateToPage?: (pageNumber: number) => void; }
+interface PdfCoreToolsProps { currentFile: File | null; currentAsset: PdfAsset | null; currentInputFile?: File | null; currentInputAsset?: import("../../domain/files/types").FileAsset | null; onContinueResult?: (file: File, asset: PdfAsset) => void; onNavigateToPage?: (pageNumber: number) => void; }
 interface ValidatedPdfResult { output: CorePdfOutput; file: File; asset: PdfAsset; validation: CorePdfValidation; downloadUrl: string; }
 interface MergeInput { file: File; asset: PdfAsset; }
 
-export function PdfCoreTools({ currentFile, currentAsset, onContinueResult, onNavigateToPage }: PdfCoreToolsProps) {
-  const [active, setActive] = useState<"merge" | "split" | "images" | "create" | "blank" | "optimization" | "ocr" | "ai" | "actions">(currentAsset ? "optimization" : "merge");
+export function PdfCoreTools({ currentFile, currentAsset, currentInputFile, currentInputAsset, onContinueResult, onNavigateToPage }: PdfCoreToolsProps) {
+  const [active, setActive] = useState<"merge" | "split" | "images" | "create" | "blank" | "optimization" | "ocr" | "ai" | "actions" | "convert">(currentAsset ? "optimization" : "convert");
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [mergeInputs, setMergeInputs] = useState<MergeInput[]>([]);
@@ -41,6 +42,7 @@ export function PdfCoreTools({ currentFile, currentAsset, onContinueResult, onNa
   useEffect(() => () => { resultUrls.current.forEach((url) => URL.revokeObjectURL(url)); imageUrls.current.forEach((url) => URL.revokeObjectURL(url)); }, []);
   useEffect(() => {
     if (currentAsset && previousAssetRef.current !== currentAsset) setActive("optimization");
+    if (currentInputAsset && !currentAsset && previousAssetRef.current === null) setActive("convert");
     previousAssetRef.current = currentAsset;
   }, [currentAsset]);
 
@@ -191,6 +193,7 @@ export function PdfCoreTools({ currentFile, currentAsset, onContinueResult, onNa
   return <section className="pdf-core-tools" aria-labelledby="pdf-core-title">
     <div className="pdf-core-heading"><div><p className="eyebrow"><span className="eyebrow-line" /> PDF core + intelligence</p><h3 id="pdf-core-title">Do more with your document.</h3><p>Optimize, merge, split, convert, clean, OCR, search, and understand PDFs. Generated PDFs are reopened with PDF.js; AI claims remain bounded and source-linked.</p></div><span className="local-badge"><Check size={13} /> PDF tools stay local</span></div>
     <div className="pdf-core-tabs" role="tablist" aria-label="PDF core operations">
+      <CoreTab id="convert" active={active === "convert"} onClick={() => { setActive("convert"); resetNotice(); }}>Convert</CoreTab>
       <CoreTab id="optimization" active={active === "optimization"} onClick={() => { setActive("optimization"); resetNotice(); }}>Optimize PDF</CoreTab>
       <CoreTab id="ai" active={active === "ai"} onClick={() => { setActive("ai"); resetNotice(); }} disabled={!currentAsset}>Understand document</CoreTab>
       <CoreTab id="actions" active={active === "actions"} onClick={() => { setActive("actions"); resetNotice(); }} disabled={!currentAsset}>Edit PDF</CoreTab>
@@ -202,6 +205,7 @@ export function PdfCoreTools({ currentFile, currentAsset, onContinueResult, onNa
       <CoreTab id="blank" active={active === "blank"} onClick={() => { setActive("blank"); resetNotice(); }} disabled={!currentAsset}>Blank pages</CoreTab>
     </div>
     {notice ? <div className="core-notice" role="alert"><X size={16} /><span>{notice}</span></div> : null}
+    {active === "convert" ? <Suspense fallback={<div className="core-panel"><span className="spinner" /> Loading conversion tools…</div>}><ConversionPanel currentFile={currentInputFile ?? currentFile} currentAsset={currentInputAsset ?? currentAsset} onContinueResult={onContinueResult} /></Suspense> : null}
     {active === "optimization" ? <Suspense fallback={<div className="core-panel"><span className="spinner" /> Loading PDF optimization tools…</div>}><PdfOptimizationPanel file={currentFile} asset={currentAsset} onContinueResult={onContinueResult} /></Suspense> : null}
     {active === "ai" ? <Suspense fallback={<div className="core-panel"><span className="spinner" /> Loading document intelligence tools…</div>}><AiDocumentPanel file={currentFile} asset={currentAsset} onNavigateToPage={onNavigateToPage} /></Suspense> : null}
     {active === "actions" ? <Suspense fallback={<div className="core-panel"><span className="spinner" /> Loading safe editor tools…</div>}><PdfActionsPanel file={currentFile} asset={currentAsset} onContinueResult={onContinueResult} onNavigateToPage={onNavigateToPage} /></Suspense> : null}

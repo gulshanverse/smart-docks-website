@@ -3,7 +3,7 @@ import type { ProcessingBoundary, SupportedImageMimeType } from "../files/types"
 export const PDF_CORE_BOUNDARY: ProcessingBoundary = "browser-local";
 export type PdfCoreOperation = "merge" | "split" | "render_images" | "create_pdf" | "detect_blank_pages" | "remove_blank_pages";
 export type PdfImageFormat = "jpg" | "png" | "webp";
-export type PdfImageResolution = "standard" | "high";
+export type PdfImageResolution = "standard" | "high" | "screen" | "150dpi" | "200dpi" | "300dpi";
 export type BlankPageClassification = "likely-blank" | "possibly-blank" | "not-blank" | "unknown";
 
 export interface PdfMetadataSnapshot {
