@@ -1,0 +1,9 @@
+# Phase 16 — Browser Verification
+
+Chromium verification was performed against the current SmartDocs development build at `http://localhost:5176/`.
+
+The application shell rendered without runtime errors. The Phase 15 Projects workspace appeared above the existing Phase 12 orchestration, Phase 13 extraction, Phase 14 automation, collection, PDF, OCR, Office, unified, and conversion surfaces. A local synthetic PNG was accepted, remained marked as temporary, and became persisted only after the explicit **Save to project** action. The dashboard updated document count, storage bytes, document-library metadata, immutable original version, and history events.
+
+The browser smoke path showed the local-only disclosure and did not trigger an AI request, upload endpoint, account flow, background synchronization, or cloud backup. Existing workflow controls remained available below the project workspace. The Phase 16 source audit additionally confirmed that imported project metadata is treated as untrusted data and cannot auto-execute workflows.
+
+The full production candidate still requires real-device coverage across browser versions for memory pressure, quota exhaustion, OCR worker interruption, malformed PDFs, Office packages, and download permission behavior. These are documented release limitations rather than claims of universal browser certification.
