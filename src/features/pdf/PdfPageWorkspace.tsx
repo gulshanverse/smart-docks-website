@@ -12,6 +12,8 @@ import type { PdfPageSession } from "./page-intelligence";
 interface PdfPageWorkspaceProps {
   file: File;
   asset: PdfAsset;
+  requestedPageNumber?: number;
+  navigationRequestToken?: number;
 }
 
 type PageMap = Record<number, PdfPageAsset>;
@@ -40,7 +42,7 @@ function formatOperationLabel(operation: PendingOperation): string {
   return "Reorder";
 }
 
-export function PdfPageWorkspace({ file, asset }: PdfPageWorkspaceProps) {
+export function PdfPageWorkspace({ file, asset, requestedPageNumber, navigationRequestToken }: PdfPageWorkspaceProps) {
   const [source, setSource] = useState({ file, asset });
   const [session, setSession] = useState<PdfPageSession | null>(null);
   const [pages, setPages] = useState<PageMap>({});
@@ -112,11 +114,20 @@ export function PdfPageWorkspace({ file, asset }: PdfPageWorkspaceProps) {
   }, [source.file, source.asset.pageCount]);
 
   useEffect(() => {
+    if (navigationRequestToken === undefined || requestedPageNumber === undefined) return;
+    if (requestedPageNumber >= 1 && requestedPageNumber <= source.asset.pageCount) {
+      setActivePageNumber(requestedPageNumber);
+      setPageMessage(`Showing source page ${requestedPageNumber} from the verified AI reference.`);
+    }
+  }, [navigationRequestToken, requestedPageNumber, source.asset.pageCount]);
+
+  useEffect(() => {
     if (!session || activePageNumber === null) return;
     let active = true;
     const pageNumber = activePageNumber;
     const workflow = createPdfPageInspectionWorkflow(source.asset, pageNumber);
-    setPageMessage(null);
+    const isAiNavigation = navigationRequestToken !== undefined && requestedPageNumber === pageNumber;
+    setPageMessage(isAiNavigation ? `Showing source page ${pageNumber} from the verified AI reference.` : null);
     setPages((current) => markSelected(current, selectedSet));
     setPages((current) => ({ ...current, [pageNumber]: { ...(current[pageNumber] ?? pagePlaceholder(pageNumber, selectedSet.has(pageNumber))), selected: selectedSet.has(pageNumber), previewState: "loading" } }));
     if (previewUrlRef.current) {
@@ -196,7 +207,7 @@ export function PdfPageWorkspace({ file, asset }: PdfPageWorkspaceProps) {
       }
     }
     setPageOrder(next);
-    setPageMessage(`Page order changed to ${next.join("  ")}. Create a new PDF to apply it.`);
+    setPageMessage(`Page order changed to ${next.join(" → ")}. Create a new PDF to apply it.`);
   }
 
   function handlePageKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {

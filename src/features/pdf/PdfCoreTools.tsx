@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Check, ChevronDown, ChevronUp, Download, FileImage, FilePlus2, Layers3, ScanText, Trash2, X } from "lucide-react";
 const PdfOptimizationPanel = lazy(() => import("./PdfOptimizationPanel").then((module) => ({ default: module.PdfOptimizationPanel })));
 const PdfOcrPanel = lazy(() => import("../ocr/PdfOcrPanel").then((module) => ({ default: module.PdfOcrPanel })));
+const AiDocumentPanel = lazy(() => import("../ai/AiDocumentPanel").then((module) => ({ default: module.AiDocumentPanel })));
 import type { PdfAsset } from "../../domain/files/types";
 import { createBlankDetectionPlan, createBlankRemovalPlan, createImageToPdfPlan, createMergePlan, createPdfImagePlan, createSplitPlan, type BlankPageSignals, type PdfImageFormat, type PdfImageResolution, type PdfMetadataSnapshot } from "../../domain/pdfs/core";
 import { validateCorePdfOutput, type CorePdfValidation } from "../../domain/pdfs/core-validation";
@@ -12,12 +13,12 @@ import { mutatePdf } from "./mutate-pdf";
 import type { PdfImageOutput } from "./render-pdf-images";
 import type { CorePdfOutput } from "./core-operations";
 
-interface PdfCoreToolsProps { currentFile: File | null; currentAsset: PdfAsset | null; onContinueResult?: (file: File, asset: PdfAsset) => void; }
+interface PdfCoreToolsProps { currentFile: File | null; currentAsset: PdfAsset | null; onContinueResult?: (file: File, asset: PdfAsset) => void; onNavigateToPage?: (pageNumber: number) => void; }
 interface ValidatedPdfResult { output: CorePdfOutput; file: File; asset: PdfAsset; validation: CorePdfValidation; downloadUrl: string; }
 interface MergeInput { file: File; asset: PdfAsset; }
 
-export function PdfCoreTools({ currentFile, currentAsset, onContinueResult }: PdfCoreToolsProps) {
-  const [active, setActive] = useState<"merge" | "split" | "images" | "create" | "blank" | "optimization" | "ocr">(currentAsset ? "optimization" : "merge");
+export function PdfCoreTools({ currentFile, currentAsset, onContinueResult, onNavigateToPage }: PdfCoreToolsProps) {
+  const [active, setActive] = useState<"merge" | "split" | "images" | "create" | "blank" | "optimization" | "ocr" | "ai">(currentAsset ? "optimization" : "merge");
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [mergeInputs, setMergeInputs] = useState<MergeInput[]>([]);
@@ -187,9 +188,10 @@ export function PdfCoreTools({ currentFile, currentAsset, onContinueResult }: Pd
   }
 
   return <section className="pdf-core-tools" aria-labelledby="pdf-core-title">
-    <div className="pdf-core-heading"><div><p className="eyebrow"><span className="eyebrow-line" /> PDF core + optimization</p><h3 id="pdf-core-title">Do more with your document.</h3><p>Optimize, merge, split, convert, and clean PDFs locally. Every generated PDF is reopened with PDF.js before download.</p></div><span className="local-badge"><Check size={13} /> Browser-local</span></div>
+    <div className="pdf-core-heading"><div><p className="eyebrow"><span className="eyebrow-line" /> PDF core + intelligence</p><h3 id="pdf-core-title">Do more with your document.</h3><p>Optimize, merge, split, convert, clean, OCR, search, and understand PDFs. Generated PDFs are reopened with PDF.js; AI claims remain bounded and source-linked.</p></div><span className="local-badge"><Check size={13} /> PDF tools stay local</span></div>
     <div className="pdf-core-tabs" role="tablist" aria-label="PDF core operations">
       <CoreTab id="optimization" active={active === "optimization"} onClick={() => { setActive("optimization"); resetNotice(); }}>Optimize PDF</CoreTab>
+      <CoreTab id="ai" active={active === "ai"} onClick={() => { setActive("ai"); resetNotice(); }} disabled={!currentAsset}>Understand document</CoreTab>
       <CoreTab id="ocr" active={active === "ocr"} onClick={() => { setActive("ocr"); resetNotice(); }} disabled={!currentAsset}>OCR + search</CoreTab>
       <CoreTab id="merge" active={active === "merge"} onClick={() => { setActive("merge"); resetNotice(); }}>Merge PDFs</CoreTab>
       <CoreTab id="split" active={active === "split"} onClick={() => { setActive("split"); resetNotice(); }} disabled={!currentAsset}>Split PDF</CoreTab>
@@ -199,6 +201,7 @@ export function PdfCoreTools({ currentFile, currentAsset, onContinueResult }: Pd
     </div>
     {notice ? <div className="core-notice" role="alert"><X size={16} /><span>{notice}</span></div> : null}
     {active === "optimization" ? <Suspense fallback={<div className="core-panel"><span className="spinner" /> Loading PDF optimization tools…</div>}><PdfOptimizationPanel file={currentFile} asset={currentAsset} onContinueResult={onContinueResult} /></Suspense> : null}
+    {active === "ai" ? <Suspense fallback={<div className="core-panel"><span className="spinner" /> Loading document intelligence tools…</div>}><AiDocumentPanel file={currentFile} asset={currentAsset} onNavigateToPage={onNavigateToPage} /></Suspense> : null}
     {active === "ocr" ? <Suspense fallback={<div className="core-panel"><span className="spinner" /> Loading local OCR tools…</div>}><PdfOcrPanel file={currentFile} asset={currentAsset} onContinueResult={onContinueResult} /></Suspense> : null}
     {active === "merge" ? <MergePanel inputs={mergeInputs} busy={busy} preserveMetadata={preserveMetadata} onPreserve={setPreserveMetadata} onFiles={handleMergeFiles} onMove={moveMerge} onRemove={(index) => setMergeInputs((current) => current.filter((_, itemIndex) => itemIndex !== index))} onRun={() => void runMerge()} /> : null}
     {active === "split" && currentAsset ? <SplitPanel currentAsset={currentAsset} ranges={splitRanges} setRanges={setSplitRanges} busy={busy} onRun={() => void runSplit()} /> : null}

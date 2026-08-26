@@ -74,7 +74,7 @@ export async function inspectPdfFile(file: File): Promise<PdfAsset | FileIntakeE
       "oversized-pdf",
       "PDF is too large for browser-local inspection.",
       "SmartDocs currently limits PDF inspection to 50 MB so the browser can keep memory use bounded.",
-      "Choose a smaller PDF. Heavier server-assisted processing is planned for a future phase, but is not available yet.",
+      "Choose a smaller PDF. Larger PDF processing remains browser-local; optional AI understanding can use only a bounded text context through the configured gateway.",
     );
   }
 

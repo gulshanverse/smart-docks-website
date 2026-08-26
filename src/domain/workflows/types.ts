@@ -6,9 +6,10 @@ import type { PdfOperationPlan, PdfOperationType } from "../pdfs/operations";
 import type { ImageToPdfPlan, PdfBlankDetectionPlan, PdfBlankRemovalPlan, PdfImageRenderPlan, PdfMergePlan, PdfSplitPlan, PdfCoreOperation } from "../pdfs/core";
 import type { PdfOptimizationIntent, PdfOptimizationPlan } from "../pdfs/optimization";
 import type { DocumentIntelligenceSnapshot, PdfAdvancedOptimizationPlan, PdfDocumentAnalysis } from "../pdfs/document-analysis";
+import type { AiOperation } from "../ai/types";
 import type { DocumentSearchResult, DocumentStructureResult, OcrDocumentResult, OcrPlan } from "../ocr/types";
 
-export type WorkflowStepId = "image.compress.target_size" | "pdf.inspect" | "pdf.inspect.page" | "pdf.render.preview" | "pdf.delete.pages" | "pdf.extract.pages" | "pdf.reorder.pages" | "pdf.rotate.pages" | "pdf.merge" | "pdf.split" | "pdf.render.images" | "image.create.pdf" | "pdf.detect.blank_pages" | "pdf.remove.blank_pages" | "pdf.analyze.optimization" | "pdf.optimize.target_size" | "pdf.analyze.advanced" | "pdf.analyze.features" | "pdf.analyze.structure" | "pdf.extract.bounded_text" | "pdf.analyze.layout" | "pdf.analyze.ocr_readiness" | "pdf.plan.optimization" | "pdf.generate.candidates" | "pdf.validate.preservation" | "pdf.compare" | "intelligence.snapshot" | "pdf.ocr.inspect" | "pdf.ocr.plan" | "pdf.ocr.recognize" | "pdf.ocr.author" | "pdf.ocr.validate" | "pdf.reopen" | "pdf.text.extract" | "pdf.text.search" | "pdf.structure.analyze" | "pdf.document.classify" | "pdf.document.sensitive" | "pdf.document.summary" | "validation";
+export type WorkflowStepId = "image.compress.target_size" | "pdf.inspect" | "pdf.inspect.page" | "pdf.render.preview" | "pdf.delete.pages" | "pdf.extract.pages" | "pdf.reorder.pages" | "pdf.rotate.pages" | "pdf.merge" | "pdf.split" | "pdf.render.images" | "image.create.pdf" | "pdf.detect.blank_pages" | "pdf.remove.blank_pages" | "pdf.analyze.optimization" | "pdf.optimize.target_size" | "pdf.analyze.advanced" | "pdf.analyze.features" | "pdf.analyze.structure" | "pdf.extract.bounded_text" | "pdf.analyze.layout" | "pdf.analyze.ocr_readiness" | "pdf.plan.optimization" | "pdf.generate.candidates" | "pdf.validate.preservation" | "pdf.compare" | "intelligence.snapshot" | "pdf.ocr.inspect" | "pdf.ocr.plan" | "pdf.ocr.recognize" | "pdf.ocr.author" | "pdf.ocr.validate" | "pdf.reopen" | "pdf.text.extract" | "pdf.text.search" | "pdf.structure.analyze" | "pdf.document.classify" | "pdf.document.sensitive" | "pdf.document.summary" | "ai.document.prepare" | "ai.document.retrieve" | "ai.document.analyze" | "ai.document.validate" | "ai.document.ask" | "ai.document.extract" | "validation";
 
 export interface ImageCompressionWorkflow {
   input: ImageAsset;
@@ -81,6 +82,14 @@ export interface PdfStructureWorkflow {
   structure?: DocumentStructureResult;
   processingBoundary: "browser-local";
   steps: readonly { id: WorkflowStepId; operation?: string }[];
+}
+
+export interface PdfAiWorkflow {
+  input: PdfAsset;
+  operation: AiOperation;
+  query: string | null;
+  processingBoundary: "browser-local-to-ai-gateway";
+  steps: readonly { id: WorkflowStepId; operation?: AiOperation }[];
 }
 
 export interface PdfCoreWorkflow {
@@ -208,6 +217,11 @@ export function createPdfTextExtractionWorkflow(input: PdfAsset): PdfSearchWorkf
 
 export function createPdfStructureWorkflow(input: PdfAsset, structure?: DocumentStructureResult): PdfStructureWorkflow {
   return { input, structure, processingBoundary: "browser-local", steps: [{ id: "pdf.structure.analyze" }, { id: "pdf.document.classify" }, { id: "pdf.document.sensitive" }, { id: "pdf.document.summary" }, { id: "validation" }] };
+}
+
+export function createPdfAiWorkflow(input: PdfAsset, operation: AiOperation, query: string | null = null): PdfAiWorkflow {
+  const operationStep: WorkflowStepId = operation === "ask" ? "ai.document.ask" : operation === "extract" ? "ai.document.extract" : operation === "structure" ? "ai.document.analyze" : operation === "classify" ? "ai.document.analyze" : "ai.document.analyze";
+  return { input, operation, query, processingBoundary: "browser-local-to-ai-gateway", steps: [{ id: "ai.document.prepare", operation }, { id: "ai.document.retrieve", operation }, { id: operationStep, operation }, { id: "ai.document.validate", operation }, { id: "validation", operation }] };
 }
 
 export function createPdfCoreWorkflow(operation: PdfCoreOperation, plan: PdfMergePlan | PdfSplitPlan | PdfImageRenderPlan | ImageToPdfPlan | PdfBlankDetectionPlan | PdfBlankRemovalPlan): PdfCoreWorkflow {

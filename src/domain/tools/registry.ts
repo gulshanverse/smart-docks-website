@@ -1,6 +1,6 @@
 import type { SupportedImageMimeType, SupportedPdfMimeType } from "../files/types";
 
-export type ToolId = "image.compress.target_size" | "pdf.inspect" | "pdf.inspect.page" | "pdf.render.preview" | "pdf.delete.pages" | "pdf.extract.pages" | "pdf.reorder.pages" | "pdf.rotate.pages" | "pdf.merge" | "pdf.split" | "pdf.render.images" | "image.create.pdf" | "pdf.detect.blank_pages" | "pdf.remove.blank_pages" | "pdf.analyze.optimization" | "pdf.optimize.target_size" | "pdf.analyze.advanced" | "pdf.inspect.images" | "pdf.inspect.fonts" | "pdf.inspect.features" | "pdf.extract.bounded_text" | "pdf.analyze.layout" | "pdf.analyze.ocr_readiness" | "pdf.plan.optimization" | "pdf.generate.candidates" | "pdf.validate.preservation" | "pdf.compare" | "intelligence.snapshot" | "pdf.ocr.inspect" | "pdf.ocr.plan" | "pdf.ocr.recognize" | "pdf.ocr.create_searchable" | "pdf.ocr.validate" | "pdf.text.extract" | "pdf.text.search" | "pdf.structure.analyze" | "pdf.document.classify";
+export type ToolId = "image.compress.target_size" | "pdf.inspect" | "pdf.inspect.page" | "pdf.render.preview" | "pdf.delete.pages" | "pdf.extract.pages" | "pdf.reorder.pages" | "pdf.rotate.pages" | "pdf.merge" | "pdf.split" | "pdf.render.images" | "image.create.pdf" | "pdf.detect.blank_pages" | "pdf.remove.blank_pages" | "pdf.analyze.optimization" | "pdf.optimize.target_size" | "pdf.analyze.advanced" | "pdf.inspect.images" | "pdf.inspect.fonts" | "pdf.inspect.features" | "pdf.extract.bounded_text" | "pdf.analyze.layout" | "pdf.analyze.ocr_readiness" | "pdf.plan.optimization" | "pdf.generate.candidates" | "pdf.validate.preservation" | "pdf.compare" | "intelligence.snapshot" | "pdf.ocr.inspect" | "pdf.ocr.plan" | "pdf.ocr.recognize" | "pdf.ocr.create_searchable" | "pdf.ocr.validate" | "pdf.text.extract" | "pdf.text.search" | "pdf.structure.analyze" | "pdf.document.classify" | "ai.document.classify" | "ai.document.summarize" | "ai.document.extract" | "ai.document.ask" | "ai.document.structure";
 export type ToolInputCategory = "image" | "pdf";
 
 export interface ToolDefinition {
@@ -9,7 +9,7 @@ export interface ToolDefinition {
   outputCategory: "image" | "pdf" | "preview";
   supportedFormats: readonly (SupportedImageMimeType | SupportedPdfMimeType)[];
   parameters: readonly string[];
-  processingBoundary: "browser-local";
+  processingBoundary: "browser-local" | "server-assisted";
   batchSupport: false;
 }
 
@@ -184,6 +184,11 @@ export const pdfTextExtractTool: ToolDefinition = { id: "pdf.text.extract", inpu
 export const pdfTextSearchTool: ToolDefinition = { id: "pdf.text.search", inputCategory: "pdf", outputCategory: "preview", supportedFormats: ["application/pdf"], parameters: ["query", "boundedMatches", "pageNavigation"], processingBoundary: "browser-local", batchSupport: false };
 export const pdfStructureAnalyzeTool: ToolDefinition = { id: "pdf.structure.analyze", inputCategory: "pdf", outputCategory: "pdf", supportedFormats: ["application/pdf"], parameters: ["documentType", "sections", "tableLikeRegions", "signatureLikeRegions"], processingBoundary: "browser-local", batchSupport: false };
 export const pdfDocumentClassifyTool: ToolDefinition = { id: "pdf.document.classify", inputCategory: "pdf", outputCategory: "pdf", supportedFormats: ["application/pdf"], parameters: ["likelyType", "confidence"], processingBoundary: "browser-local", batchSupport: false };
+export const aiDocumentClassifyTool: ToolDefinition = { id: "ai.document.classify", inputCategory: "pdf", outputCategory: "preview", supportedFormats: ["application/pdf"], parameters: ["boundedContext", "consent", "provenance"], processingBoundary: "server-assisted", batchSupport: false };
+export const aiDocumentSummarizeTool: ToolDefinition = { id: "ai.document.summarize", inputCategory: "pdf", outputCategory: "preview", supportedFormats: ["application/pdf"], parameters: ["boundedContext", "consent", "provenance"], processingBoundary: "server-assisted", batchSupport: false };
+export const aiDocumentExtractTool: ToolDefinition = { id: "ai.document.extract", inputCategory: "pdf", outputCategory: "preview", supportedFormats: ["application/pdf"], parameters: ["schemaId", "boundedContext", "consent", "provenance"], processingBoundary: "server-assisted", batchSupport: false };
+export const aiDocumentAskTool: ToolDefinition = { id: "ai.document.ask", inputCategory: "pdf", outputCategory: "preview", supportedFormats: ["application/pdf"], parameters: ["query", "boundedContext", "consent", "provenance"], processingBoundary: "server-assisted", batchSupport: false };
+export const aiDocumentStructureTool: ToolDefinition = { id: "ai.document.structure", inputCategory: "pdf", outputCategory: "preview", supportedFormats: ["application/pdf"], parameters: ["boundedContext", "consent", "provenance"], processingBoundary: "server-assisted", batchSupport: false };
 
 export const pdfPreviewTool: ToolDefinition = {
   id: "pdf.render.preview",
@@ -195,4 +200,4 @@ export const pdfPreviewTool: ToolDefinition = {
   batchSupport: false,
 };
 
-export const toolRegistry = [imageTargetCompressionTool, pdfInspectTool, pdfPageInspectTool, pdfPreviewTool, pdfDeletePagesTool, pdfExtractPagesTool, pdfReorderPagesTool, pdfRotatePagesTool, pdfMergeTool, pdfSplitTool, pdfRenderImagesTool, imageCreatePdfTool, pdfDetectBlankPagesTool, pdfRemoveBlankPagesTool, pdfAnalyzeOptimizationTool, pdfOptimizeTargetSizeTool, pdfAdvancedAnalyzeTool, pdfImageInspectTool, pdfFontInspectTool, pdfFeatureInspectTool, pdfBoundedTextTool, pdfLayoutAnalyzeTool, pdfOcrReadinessTool, pdfAdvancedPlanTool, pdfCandidateTool, pdfPreservationValidationTool, pdfCompareTool, intelligenceSnapshotTool, pdfOcrInspectTool, pdfOcrPlanTool, pdfOcrRecognizeTool, pdfOcrSearchableTool, pdfOcrValidateTool, pdfTextExtractTool, pdfTextSearchTool, pdfStructureAnalyzeTool, pdfDocumentClassifyTool] as const;
+export const toolRegistry = [imageTargetCompressionTool, pdfInspectTool, pdfPageInspectTool, pdfPreviewTool, pdfDeletePagesTool, pdfExtractPagesTool, pdfReorderPagesTool, pdfRotatePagesTool, pdfMergeTool, pdfSplitTool, pdfRenderImagesTool, imageCreatePdfTool, pdfDetectBlankPagesTool, pdfRemoveBlankPagesTool, pdfAnalyzeOptimizationTool, pdfOptimizeTargetSizeTool, pdfAdvancedAnalyzeTool, pdfImageInspectTool, pdfFontInspectTool, pdfFeatureInspectTool, pdfBoundedTextTool, pdfLayoutAnalyzeTool, pdfOcrReadinessTool, pdfAdvancedPlanTool, pdfCandidateTool, pdfPreservationValidationTool, pdfCompareTool, intelligenceSnapshotTool, pdfOcrInspectTool, pdfOcrPlanTool, pdfOcrRecognizeTool, pdfOcrSearchableTool, pdfOcrValidateTool, pdfTextExtractTool, pdfTextSearchTool, pdfStructureAnalyzeTool, pdfDocumentClassifyTool, aiDocumentClassifyTool, aiDocumentSummarizeTool, aiDocumentExtractTool, aiDocumentAskTool, aiDocumentStructureTool] as const;
