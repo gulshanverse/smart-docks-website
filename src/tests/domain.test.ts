@@ -57,6 +57,10 @@ import { extractRecord } from "../domain/extraction/deterministic";
 import { exportExtractionResult } from "../domain/extraction/export";
 import { aggregateCollection, validateExtractionRecord, validateExtractionSchema } from "../domain/extraction/validation";
 import { planExtractionForDocuments } from "../features/extraction/planner";
+import { AUTOMATION_CONTRACT_VERSION, AUTOMATION_LIMITS } from "../domain/automation/types";
+import { buildEvidenceGraph } from "../domain/automation/evidence";
+import { buildFinalDeliverable, buildPackageManifest, buildQualityGates, canRetryStep, createAuditEvent, createAutomationSession, createCheckpoint, restoreCheckpoint, retryPolicyForStep, validateCheckpoint } from "../domain/automation/engine";
+import { reconcileExtractionRecords } from "../domain/automation/reconciliation";
 
 describe("byte units", () => {
   it("uses decimal KB and MB values", () => {
@@ -913,5 +917,74 @@ describe("Phase 13 structured extraction", () => {
     expect(aiPlan.extraction.requiresAi).toBe(true);
     expect(aiPlan.workflow.processingBoundary).toBe("browser-local-to-ai-gateway");
     expect(aiPlan.workflow.requiresConfirmation).toBe(true);
+  });
+});
+
+describe("Phase 14 automation reliability", () => {
+  const imageAsset = { id: "automation-image", name: "synthetic.png", sizeBytes: 100, extension: "png", processingBoundary: "browser-local" as const, category: "image" as const, mimeType: "image/png" as const, width: 32, height: 32, previewUrl: "blob:synthetic", capabilities: { compressToTarget: true as const } };
+  const plan = planWorkflowForAsset(imageAsset, "compress this image under 1MB");
+
+  it("creates versioned sessions and metadata-only checkpoints", () => {
+    const session = createAutomationSession(plan);
+    expect(session.version).toBe(AUTOMATION_CONTRACT_VERSION);
+    const checkpoint = createCheckpoint(session, [], Object.fromEntries(plan.steps.map((step) => [step.id, "success" as const])), {}, null);
+    expect(checkpoint.completedArtifactMetadata).toHaveLength(0);
+    expect(checkpoint.version).toBe(AUTOMATION_CONTRACT_VERSION);
+    expect(validateCheckpoint(checkpoint, session.sessionId, plan.workflowId).valid).toBe(true);
+    expect(validateCheckpoint({ ...checkpoint, sessionId: "other" }, session.sessionId, plan.workflowId).valid).toBe(false);
+  });
+
+  it("restores without rerunning completed validated steps", () => {
+    const session = createAutomationSession(plan);
+    const checkpoint = createCheckpoint(session, [], { [plan.steps[0].id]: "success", [plan.steps[1].id]: "retryable" }, { [plan.steps[1].id]: 1 });
+    const restored = restoreCheckpoint(session, checkpoint);
+    expect(restored.state).toBe("recoverable");
+    expect(restored.recovery.failedStepIds).toContain(plan.steps[1].id);
+    expect(restored.recovery.message).toContain("will not be blindly rerun");
+  });
+
+  it("bounds retry attempts and blocks destructive retries", () => {
+    const safe = retryPolicyForStep({ risk: "low", processingBoundary: "browser-local", retryPolicy: "bounded-retryable", capability: "document.extract.deterministic" });
+    expect(safe.maximumAttempts).toBe(2);
+    expect(canRetryStep({ risk: "low", processingBoundary: "browser-local", retryPolicy: "bounded-retryable", capability: "document.extract.deterministic" }, 1)).toBe(true);
+    expect(canRetryStep({ risk: "low", processingBoundary: "browser-local", retryPolicy: "bounded-retryable", capability: "document.extract.deterministic" }, 2)).toBe(false);
+    const destructive = retryPolicyForStep({ risk: "high", processingBoundary: "browser-local", retryPolicy: "bounded-retryable", capability: "pdf.redact.region" });
+    expect(destructive.retryable).toBe(false);
+    expect(destructive.automatic).toBe(false);
+  });
+
+  it("preserves quality gate uncertainty and builds a safe final manifest", () => {
+    const session = createAutomationSession(plan);
+    const gates = buildQualityGates({ sourceIdentity: true, dependencies: true, outputValidation: false, provenance: false, warnings: ["Evidence pending"] });
+    expect(gates.some((gate) => gate.status === "unknown" || gate.status === "warning")).toBe(true);
+    const deliverable = buildFinalDeliverable(session, [], gates);
+    expect(deliverable.status).toBe("verified_with_warnings");
+    const manifest = buildPackageManifest(session, deliverable, []);
+    expect(manifest.includesOriginalBytes).toBe(false);
+    expect(manifest.includesRawPrompts).toBe(false);
+    expect(manifest.includesApiKeys).toBe(false);
+    expect(manifest.includesOcrImages).toBe(false);
+  });
+
+  it("reconciles extraction records without selecting a conflict winner", () => {
+    const schema = getSchemaForDocumentType("invoice");
+    const a = extractRecord(schema, [{ documentId: "a", documentName: "a.txt", sourceId: "a-page-1", sourceType: "native-text", pageNumber: 1, text: "Invoice Number: INV-1\nInvoice Date: 2026-08-27\nVendor: A\nTotal: ₹12,500" }]);
+    const b = extractRecord(schema, [{ documentId: "b", documentName: "b.txt", sourceId: "b-page-1", sourceType: "native-text", pageNumber: 1, text: "Invoice Number: INV-2\nInvoice Date: 2026-08-27\nVendor: A\nTotal: ₹11,500" }]);
+    const result = reconcileExtractionRecords("reconcile-1", [a, b], ["invoiceNumber", "total"]);
+    expect(result.status).toBe("conflict");
+    expect(result.discrepancies.some((item) => item.fieldNames.includes("total"))).toBe(true);
+    expect(result.discrepancies[0]?.status).toBe("open");
+  });
+
+  it("builds bounded evidence links and audit events", () => {
+    const schema = getSchemaForDocumentType("invoice");
+    const record = extractRecord(schema, [{ documentId: "evidence-doc", documentName: "evidence.txt", sourceId: "page-2", sourceType: "native-text", pageNumber: 2, text: "Invoice Number: INV-2\nTotal: ₹12,500" }]);
+    const gates = buildQualityGates({ sourceIdentity: true, dependencies: true, outputValidation: true, provenance: true });
+    const graph = buildEvidenceGraph([record], "step-deterministic", gates);
+    expect(graph.some((item) => item.fieldId === "total" && item.pageNumber === 2)).toBe(true);
+    const event = createAuditEvent({ type: "STEP_COMPLETED", sessionId: "session-1", workflowId: "workflow-1", stepId: "step-deterministic", documentIds: ["evidence-doc"], metadata: { bytes: 100 } });
+    expect(event.version).toBe(AUTOMATION_CONTRACT_VERSION);
+    expect(event.metadata).not.toHaveProperty("rawBytes");
+    expect(AUTOMATION_LIMITS.maxConcurrency).toBe(2);
   });
 });
