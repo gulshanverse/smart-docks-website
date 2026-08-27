@@ -14,6 +14,8 @@ import { analyzePdfDocument, DocumentAnalysisCancelledError, validatePdfRepresen
 interface PdfOptimizationPanelProps {
   file: File | null;
   asset: PdfAsset | null;
+  autoRunGoal?: string | null;
+  onAutoRunComplete?: (success: boolean) => void;
   onContinueResult?: (file: File, asset: PdfAsset) => void;
 }
 
@@ -57,7 +59,7 @@ function progressPercent(progress: PdfOptimizationProgress | null): number | nul
   return Math.min(100, Math.round((progress.completed / progress.total) * 100));
 }
 
-export function PdfOptimizationPanel({ file, asset, onContinueResult }: PdfOptimizationPanelProps) {
+export function PdfOptimizationPanel({ file, asset, autoRunGoal, onAutoRunComplete, onContinueResult }: PdfOptimizationPanelProps) {
   const [mode, setMode] = useState<PdfQualityMode>("balanced");
   const [metadataPolicy, setMetadataPolicy] = useState<PdfOptimizationMetadataPolicy>("preserve");
   const [goal, setGoal] = useState("");
@@ -70,6 +72,7 @@ export function PdfOptimizationPanel({ file, asset, onContinueResult }: PdfOptim
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
+  const runOptimizationRef = useRef<(goalOverride?: string) => Promise<void>>(() => Promise.resolve());
   const resultUrlsRef = useRef<string[]>([]);
   const sourceKey = `${asset?.id ?? "none"}:${file?.name ?? "none"}:${file?.size ?? 0}`;
 
@@ -87,6 +90,12 @@ export function PdfOptimizationPanel({ file, asset, onContinueResult }: PdfOptim
     setProgress(null);
     setNotice(null);
   }, [sourceKey]);
+
+  useEffect(() => {
+    if (!autoRunGoal || !file || !asset) return;
+    setGoal(autoRunGoal);
+    void runOptimizationRef.current(autoRunGoal);
+  }, [autoRunGoal, asset, file, sourceKey]);
 
   const targetHint = useMemo(() => parsePdfIntent(goal), [goal]);
   const percent = progressPercent(progress);
@@ -141,15 +150,19 @@ export function PdfOptimizationPanel({ file, asset, onContinueResult }: PdfOptim
     }
   }
 
-  async function runOptimization() {
+  async function runOptimization(goalOverride?: string) {
+    const requestedGoal = goalOverride ?? goal;
+    const notifyAutoRun = goalOverride !== undefined;
     if (!file || !asset) {
       setNotice("Add a PDF before optimizing it.");
+      if (notifyAutoRun) onAutoRunComplete?.(false);
       return;
     }
-    const parsed = parsePdfIntent(goal);
+    const parsed = parsePdfIntent(requestedGoal);
     const intent: PdfOptimizationIntent = parsed.status === "valid" && parsed.intent ? { ...parsed.intent } : { operation: "pdf.optimize.target_size", targetBytes: null, targetLabel: null, sourceType: "pdf" };
     if (parsed.status === "unsupported") {
       setNotice(parsed.message);
+      if (notifyAutoRun) onAutoRunComplete?.(false);
       return;
     }
     releaseResult();
@@ -198,6 +211,7 @@ export function PdfOptimizationPanel({ file, asset, onContinueResult }: PdfOptim
         resultUrlsRef.current.push(downloadUrl, validated.previewUrl);
         setResult({ result: optimized, file: validated.file, asset: validated.asset, previewUrl: validated.previewUrl, downloadUrl });
         setProgress({ stage: "complete", completed: 1, total: 1, detail: "Optimization complete" });
+        if (notifyAutoRun) onAutoRunComplete?.(true);
         return;
       }
 
@@ -238,6 +252,7 @@ export function PdfOptimizationPanel({ file, asset, onContinueResult }: PdfOptim
       resultUrlsRef.current.push(downloadUrl, selectedEntry.previewUrl);
       setResult({ result: optimized, file: selectedEntry.file, asset: selectedEntry.asset, previewUrl: selectedEntry.previewUrl, downloadUrl });
       setProgress({ stage: "complete", completed: outputs.length, total: outputs.length, detail: optimized.targetAchieved === false ? "Target could not be reached; best validated result selected" : "Optimization complete" });
+      if (notifyAutoRun) onAutoRunComplete?.(true);
     } catch (error) {
       if (error instanceof OptimizationCancelledError || error instanceof DocumentAnalysisCancelledError || controller.signal.aborted) {
         setProgress({ stage: "cancelled", completed: 0, total: 0, detail: "Optimization cancelled. The original PDF remains unchanged." });
@@ -246,11 +261,14 @@ export function PdfOptimizationPanel({ file, asset, onContinueResult }: PdfOptim
         setNotice(error instanceof Error ? error.message : "PDF optimization failed locally.");
         setProgress(null);
       }
+      if (notifyAutoRun) onAutoRunComplete?.(false);
     } finally {
       abortRef.current = null;
       setBusy(false);
     }
   }
+
+  runOptimizationRef.current = runOptimization;
 
   if (!file || !asset) return <div className="core-panel optimization-panel"><p>Add a validated PDF to analyze its size, document type, and safe optimization opportunities.</p></div>;
 

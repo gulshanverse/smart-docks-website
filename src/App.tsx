@@ -85,6 +85,7 @@ function App() {
   const [pdfNavigationRequest, setPdfNavigationRequest] = useState<{ pageNumber: number; token: number } | null>(null);
   const [unifiedPlan, setUnifiedPlan] = useState<UnifiedWorkflowPlan | null>(null);
   const [unifiedState, setUnifiedState] = useState<UnifiedWorkflowState>("idle");
+  const [pdfOptimizationRequest, setPdfOptimizationRequest] = useState<string | null>(null);
   const pdfNavigationTokenRef = useRef(0);
 
   useEffect(() => {
@@ -247,6 +248,16 @@ function App() {
   async function confirmUnifiedPlan() {
     if (!unifiedPlan) return;
     setUnifiedState("running");
+    if (asset?.category === "pdf") {
+      setNotice(null);
+      setPdfOptimizationRequest(goal);
+      const tools = document.getElementById("advanced-tools") as HTMLDetailsElement | null;
+      if (tools) {
+        tools.open = true;
+        tools.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+      return;
+    }
     const success = await runWorkflow();
     setUnifiedState(success ? "completed" : "recoverable-error");
   }
@@ -296,6 +307,7 @@ function App() {
     setNotice(null);
     setUnifiedPlan(null);
     setUnifiedState("idle");
+    setPdfOptimizationRequest(null);
     setStage(null);
     setKeepOriginalDimensions(false);
     setPdfNavigationRequest(null);
@@ -397,7 +409,7 @@ function App() {
 
             <section id="projects" className="project-promo" aria-label="Local projects"><div className="project-promo-icon"><FolderOpen size={23} /></div><div><p className="eyebrow">Work continues with you</p><h3>Save a project. Pick it up later.</h3><p>Keep documents and workflow history in a local project on this device.</p></div><button className="secondary-button" type="button" onClick={() => { const tools = document.getElementById("advanced-tools") as HTMLDetailsElement | null; if (tools) { tools.open = true; tools.scrollIntoView({ behavior: "smooth", block: "start" }); } }}>Open projects <ArrowRight size={15} /></button></section>
 
-            <details id="advanced-tools" className="advanced-tools"><summary><span><HardDrive size={17} /> Advanced document tools</span><small>PDF actions, OCR, collections, Office inspection, projects, and workflow controls</small><ChevronDown size={18} /></summary><div className="advanced-tools-intro">The simple flow is the recommended starting point. Open this area when you need a specialized control or want to inspect the underlying workflow.</div><ProjectsWorkspace asset={asset} currentFile={currentFileRef.current} /><WorkflowWorkspace asset={asset} documents={[]} onGoalChange={handleGoalChange} onExecute={executeOrchestratedWorkflow} /><ExtractionWorkspace asset={asset} onNavigateToPage={navigateToPdfPage} /><AutomationWorkspace asset={asset} onExecute={executeOrchestratedWorkflow} /><CollectionWorkspace onContinuePdf={continueWithPdfResult} />{asset?.category === "pdf" && pdfFileRef.current ? <PdfPageWorkspace file={pdfFileRef.current} asset={asset} requestedPageNumber={pdfNavigationRequest?.pageNumber} navigationRequestToken={pdfNavigationRequest?.token} /> : null}{asset?.category === "office" ? <OfficeWorkspace asset={asset} /> : null}<PdfCoreTools currentFile={pdfFileRef.current} currentAsset={asset?.category === "pdf" ? asset : null} currentInputFile={currentFileRef.current} currentInputAsset={asset} onContinueResult={continueWithPdfResult} onNavigateToPage={navigateToPdfPage} onClearParentNotice={() => setNotice(null)} /></details>
+            <details id="advanced-tools" className="advanced-tools"><summary><span><HardDrive size={17} /> Advanced document tools</span><small>PDF actions, OCR, collections, Office inspection, projects, and workflow controls</small><ChevronDown size={18} /></summary><div className="advanced-tools-intro">The simple flow is the recommended starting point. Open this area when you need a specialized control or want to inspect the underlying workflow.</div><ProjectsWorkspace asset={asset} currentFile={currentFileRef.current} /><WorkflowWorkspace asset={asset} documents={[]} onGoalChange={handleGoalChange} onExecute={executeOrchestratedWorkflow} /><ExtractionWorkspace asset={asset} onNavigateToPage={navigateToPdfPage} /><AutomationWorkspace asset={asset} onExecute={executeOrchestratedWorkflow} /><CollectionWorkspace onContinuePdf={continueWithPdfResult} />{asset?.category === "pdf" && pdfFileRef.current ? <PdfPageWorkspace file={pdfFileRef.current} asset={asset} requestedPageNumber={pdfNavigationRequest?.pageNumber} navigationRequestToken={pdfNavigationRequest?.token} /> : null}{asset?.category === "office" ? <OfficeWorkspace asset={asset} /> : null}<PdfCoreTools currentFile={pdfFileRef.current} currentAsset={asset?.category === "pdf" ? asset : null} currentInputFile={currentFileRef.current} currentInputAsset={asset} pdfOptimizationGoal={pdfOptimizationRequest} onPdfOptimizationComplete={(success) => { setPdfOptimizationRequest(null); setUnifiedState(success ? "completed" : "recoverable-error"); }} onContinueResult={continueWithPdfResult} onNavigateToPage={navigateToPdfPage} onClearParentNotice={() => setNotice(null)} /></details>
           </div>
         </section>
 

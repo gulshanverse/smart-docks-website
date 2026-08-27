@@ -15,11 +15,11 @@ import { mutatePdf } from "./mutate-pdf";
 import type { PdfImageOutput } from "./render-pdf-images";
 import type { CorePdfOutput } from "./core-operations";
 
-interface PdfCoreToolsProps { currentFile: File | null; currentAsset: PdfAsset | null; currentInputFile?: File | null; currentInputAsset?: import("../../domain/files/types").FileAsset | null; onContinueResult?: (file: File, asset: PdfAsset) => void; onNavigateToPage?: (pageNumber: number) => void; onClearParentNotice?: () => void; }
+interface PdfCoreToolsProps { currentFile: File | null; currentAsset: PdfAsset | null; currentInputFile?: File | null; currentInputAsset?: import("../../domain/files/types").FileAsset | null; pdfOptimizationGoal?: string | null; onPdfOptimizationComplete?: (success: boolean) => void; onContinueResult?: (file: File, asset: PdfAsset) => void; onNavigateToPage?: (pageNumber: number) => void; onClearParentNotice?: () => void; }
 interface ValidatedPdfResult { output: CorePdfOutput; file: File; asset: PdfAsset; validation: CorePdfValidation; downloadUrl: string; }
 interface MergeInput { file: File; asset: PdfAsset; }
 
-export function PdfCoreTools({ currentFile, currentAsset, currentInputFile, currentInputAsset, onContinueResult, onNavigateToPage, onClearParentNotice }: PdfCoreToolsProps) {
+export function PdfCoreTools({ currentFile, currentAsset, currentInputFile, currentInputAsset, pdfOptimizationGoal, onPdfOptimizationComplete, onContinueResult, onNavigateToPage, onClearParentNotice }: PdfCoreToolsProps) {
   const [active, setActive] = useState<"merge" | "split" | "images" | "create" | "blank" | "optimization" | "ocr" | "ai" | "actions" | "convert">(currentAsset ? "optimization" : "convert");
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -206,7 +206,7 @@ export function PdfCoreTools({ currentFile, currentAsset, currentInputFile, curr
     </div>
     {notice ? <div className="core-notice" role="alert"><X size={16} /><span>{notice}</span></div> : null}
     {active === "convert" ? <Suspense fallback={<div className="core-panel"><span className="spinner" /> Loading conversion tools…</div>}><ConversionPanel currentFile={currentInputFile ?? currentFile} currentAsset={currentInputAsset ?? currentAsset} onContinueResult={onContinueResult} onClearParentNotice={onClearParentNotice} /></Suspense> : null}
-    {active === "optimization" ? <Suspense fallback={<div className="core-panel"><span className="spinner" /> Loading PDF optimization tools…</div>}><PdfOptimizationPanel file={currentFile} asset={currentAsset} onContinueResult={onContinueResult} /></Suspense> : null}
+    {active === "optimization" ? <Suspense fallback={<div className="core-panel"><span className="spinner" /> Loading PDF optimization tools…</div>}><PdfOptimizationPanel file={currentFile} asset={currentAsset} autoRunGoal={pdfOptimizationGoal} onAutoRunComplete={onPdfOptimizationComplete} onContinueResult={onContinueResult} /></Suspense> : null}
     {active === "ai" ? <Suspense fallback={<div className="core-panel"><span className="spinner" /> Loading document intelligence tools…</div>}><AiDocumentPanel file={currentFile} asset={currentAsset} onNavigateToPage={onNavigateToPage} /></Suspense> : null}
     {active === "actions" ? <Suspense fallback={<div className="core-panel"><span className="spinner" /> Loading safe editor tools…</div>}><PdfActionsPanel file={currentFile} asset={currentAsset} onContinueResult={onContinueResult} onNavigateToPage={onNavigateToPage} /></Suspense> : null}
     {active === "ocr" ? <Suspense fallback={<div className="core-panel"><span className="spinner" /> Loading local OCR tools…</div>}><PdfOcrPanel file={currentFile} asset={currentAsset} onContinueResult={onContinueResult} /></Suspense> : null}
