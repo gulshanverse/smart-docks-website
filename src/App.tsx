@@ -253,7 +253,7 @@ function App() {
     void runWorkflow({ allowResize });
   }
 
-  function continueWithPdfResult(file: File, resultAsset: PdfAsset) {
+  function continueWithPdfResult(file: File, _resultAsset: PdfAsset) {
     if (pdfFileRef.current && asset?.category === "pdf" && !originalPdfRef.current) {
       const snapshot = { file: pdfFileRef.current, asset };
       originalPdfRef.current = snapshot;
@@ -383,7 +383,7 @@ function App() {
             <CollectionWorkspace onContinuePdf={continueWithPdfResult} />
             {asset?.category === "pdf" && pdfFileRef.current ? <PdfPageWorkspace file={pdfFileRef.current} asset={asset} requestedPageNumber={pdfNavigationRequest?.pageNumber} navigationRequestToken={pdfNavigationRequest?.token} /> : null}
             {asset?.category === "office" ? <OfficeWorkspace asset={asset} /> : null}
-            <PdfCoreTools currentFile={pdfFileRef.current} currentAsset={asset?.category === "pdf" ? asset : null} currentInputFile={currentFileRef.current} currentInputAsset={asset} onContinueResult={continueWithPdfResult} onNavigateToPage={navigateToPdfPage} />
+            <PdfCoreTools currentFile={pdfFileRef.current} currentAsset={asset?.category === "pdf" ? asset : null} currentInputFile={currentFileRef.current} currentInputAsset={asset} onContinueResult={continueWithPdfResult} onNavigateToPage={navigateToPdfPage} onClearParentNotice={() => setNotice(null)} />
             {originalPdf ? <div className="pdf-recovery-bar" role="status"><span><strong>Original PDF remains recoverable.</strong> Continue editing the current result or return to the untouched source.</span><button type="button" className="secondary-button" onClick={returnToOriginalPdf}><RotateCcw size={15} /> Return to original PDF</button></div> : null}
 
             {notice ? <div className="notice" role="alert"><div className="notice-icon"><X size={17} /></div><div><strong>{notice.title}</strong><p>{notice.message}</p><span>{notice.recovery}</span></div></div> : null}
@@ -419,7 +419,7 @@ function OfficeAssetCard({ asset, onReset }: { asset: OfficeAsset; onReset: () =
   return <div className="pdf-asset-card office-asset-card"><div className="pdf-preview-frame office-file-mark"><strong>.{asset.format.toUpperCase()}</strong><span>Office</span></div><div className="pdf-asset-info"><div><strong>{asset.name}</strong><button className="icon-button" type="button" onClick={onReset} aria-label="Remove Office file"><X size={16} /></button></div><span>{formatBytes(asset.sizeBytes)} · {typeLabel}</span><span>{asset.analysis.complexity} complexity · {asset.analysis.preservationRisk} preservation risk</span><span className="local-badge"><LockKeyhole size={13} /> Stays in your browser</span></div></div>;
 }
 
-function PdfAssetCard({ asset, file, validation, onReset }: { asset: PdfAsset; file: File; validation: PdfInspectionValidation | null; onReset: () => void }) {
+function PdfAssetCard({ asset, file: _file, validation, onReset }: { asset: PdfAsset; file: File; validation: PdfInspectionValidation | null; onReset: () => void }) {
   return <div className="pdf-asset-card" data-testid="pdf-preview-card">
     <div className="pdf-preview-frame">{asset.previewUrl ? <img src={asset.previewUrl} alt={`First-page preview of ${asset.name}`} /> : <span>Preview unavailable</span>}</div>
     <div className="pdf-asset-info">

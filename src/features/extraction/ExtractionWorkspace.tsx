@@ -7,7 +7,7 @@ import { exportExtractionResult } from "../../domain/extraction/export";
 import { validateExtractionRecord } from "../../domain/extraction/validation";
 import type { ExtractionExportFormat, ExtractionFieldValue, ExtractionPlan, ExtractionSchema } from "../../domain/extraction/types";
 import { planExtractionForAsset } from "./planner";
-import { buildWorkflowPlan, type WorkflowPlan } from "../../domain/workflows/orchestration";
+import { type WorkflowPlan } from "../../domain/workflows/orchestration";
 
 interface ExtractionWorkspaceProps { asset: FileAsset | null; onNavigateToPage?: (pageNumber: number) => void; }
 

@@ -159,7 +159,7 @@ export function PdfPageWorkspace({ file, asset, requestedPageNumber, navigationR
     return () => {
       active = false;
     };
-  }, [activePageNumber, selectedSet, session, source.asset]);
+  }, [activePageNumber, navigationRequestToken, requestedPageNumber, selectedSet, session, source.asset]);
 
   const handlePageData = useCallback((pageNumber: number, page: PdfPageAsset) => {
     setPages((current) => ({ ...current, [pageNumber]: { ...page, selected: selectedPages.has(pageNumber) } }));
@@ -373,7 +373,7 @@ function LazyPageThumbnail({ pageNumber, page, session, selected, onSelect, onTo
   useEffect(() => {
     if (!containerRef.current || visible) return;
     if (!("IntersectionObserver" in window)) {
-      setVisible(true);
+      setTimeout(() => setVisible(true), 0);
       return;
     }
     const observer = new IntersectionObserver((entries) => {
@@ -387,10 +387,10 @@ function LazyPageThumbnail({ pageNumber, page, session, selected, onSelect, onTo
   }, [visible]);
 
   useEffect(() => {
-    if (!visible || !session || thumbnail?.thumbnailUrl) return;
+    if (!visible || !session || thumbnail?.thumbnailUrl || thumbnail?.thumbnailState === "loading") return;
     let active = true;
     const placeholder = thumbnail ?? pagePlaceholder(pageNumber, selected);
-    setThumbnail({ ...placeholder, thumbnailState: "loading", selected });
+    queueMicrotask(() => { if (active) setThumbnail({ ...placeholder, thumbnailState: "loading", selected }); });
     void (async () => {
       try {
         const metadata = await session.inspectPage(pageNumber);
@@ -412,7 +412,7 @@ function LazyPageThumbnail({ pageNumber, page, session, selected, onSelect, onTo
     return () => {
       active = false;
     };
-  }, [onPageData, pageNumber, page, selected, session, visible]);
+  }, [onPageData, pageNumber, page, selected, session, thumbnail, visible]);
 
   return <div ref={containerRef} className={`pdf-thumbnail ${selected ? "selected" : ""}`} role="listitem">
     <button type="button" onClick={onSelect} aria-pressed={selected} aria-label={`Preview page ${pageNumber}`} className="pdf-thumbnail-button">

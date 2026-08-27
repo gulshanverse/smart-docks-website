@@ -1,7 +1,7 @@
-import { useState, useRef, useEffect } from "react";
-import { Check, CircleAlert, FileStack, LockKeyhole, Play, RotateCcw, ShieldCheck, WandSparkles, X, ChevronRight, ChevronDown, Clock, Activity, Download, ExternalLink } from "lucide-react";
+import { useState } from "react";
+import { Check, CircleAlert, FileStack, LockKeyhole, Play, RotateCcw, ShieldCheck, WandSparkles, X, ChevronRight, Activity } from "lucide-react";
 import type { FileAsset } from "../../domain/files/types";
-import { buildWorkflowPlan, planWorkflowForAsset, transitionWorkflowState, type WorkflowPlan, type WorkflowExecutionState, type WorkflowStep, type WorkflowArtifact, type WorkflowHistoryEntry, type WorkflowStepState, WORKFLOW_CONTRACT_VERSION } from "../../domain/workflows/orchestration";
+import { planWorkflowForAsset, type WorkflowPlan, type WorkflowExecutionState, type WorkflowHistoryEntry, type WorkflowStepState } from "../../domain/workflows/orchestration";
 import { formatBytes } from "../../lib/file-utils";
 
 interface WorkflowWorkspaceProps {

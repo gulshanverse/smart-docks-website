@@ -3,7 +3,7 @@ import { formatBytes, reductionPercent } from "../lib/file-utils";
 import { parseByteTarget, parseImageIntent, parsePdfIntent } from "../domain/intents/parse-intent";
 import { selectCandidate } from "../features/compression/select-candidate";
 import { qualityDecision, scaledDimensions } from "../features/compression/compress-image";
-import { MAX_PDF_INPUT_BYTES } from "../domain/files/types";
+import { MAX_PDF_INPUT_BYTES, type FileAsset } from "../domain/files/types";
 import { classifyPdf } from "../domain/pdfs/types";
 import { validatePdfInspection } from "../domain/pdfs/validation";
 import { createPdfInspectionWorkflow } from "../domain/workflows/types";
@@ -25,7 +25,6 @@ import { validateSearchablePdfCandidate } from "../domain/ocr/validation";
 import { MAX_OCR_PAGES_PER_RUN, type OcrDocumentResult, type OcrPageResult } from "../domain/ocr/types";
 import { createPdfMakeSearchableWorkflow, createPdfOcrInspectionWorkflow, createPdfOcrRecognitionWorkflow, createPdfSearchWorkflow, createPdfStructureWorkflow } from "../domain/workflows/types";
 import { buildAiDocumentContext, buildAiRequest } from "../domain/ai/context";
-import { documentSchemaRegistry } from "../domain/ai/schemas";
 import { normalizeDateValue, normalizeDocumentType } from "../domain/ai/normalization";
 import { validateAiRequestLimits, validateAiResult, validateAiResponse } from "../domain/ai/validation";
 import { retrieveRelevantBlocks } from "../domain/ai/retrieval";
@@ -33,7 +32,7 @@ import { DeterministicMockAiProvider } from "../features/ai/mock-provider";
 import { promptForOperation } from "../domain/ai/prompts";
 import { toolRegistry } from "../domain/tools/registry";
 import type { AiDocumentContext, AiOperationResult } from "../domain/ai/types";
-import { pageIdentity, type DocumentAction } from "../domain/actions/types";
+import { pageIdentity } from "../domain/actions/types";
 import { createUserAction, planDocumentActions } from "../domain/actions/planner";
 import { clampRect, viewportToPdf } from "../domain/actions/coordinates";
 import { createPdfActionWorkflow, createConversionWorkflow, createOfficeWorkflow } from "../domain/workflows/types";
@@ -49,7 +48,7 @@ import { canTransition, transitionWorkflowState as transitionUnifiedState } from
 import { evaluateCollectionCompatibility, fingerprintFile, transitionCollectionState } from "../domain/collections/compatibility";
 import { planCollectionWorkflow } from "../domain/collections/planner";
 import type { CollectionDocument } from "../domain/collections/types";
-import { WORKFLOW_CONTRACT_VERSION, buildWorkflowPlan, canTransitionWorkflowState, createWorkflowStep, evaluateWorkflowCondition, planWorkflowForAsset, planWorkflowForCollection, runBoundedScheduler, topologicalSort, transitionWorkflowState, validateWorkflowPlan, type WorkflowDefinition } from "../domain/workflows/orchestration";
+import { canTransitionWorkflowState, createWorkflowStep, evaluateWorkflowCondition, planWorkflowForAsset, planWorkflowForCollection, runBoundedScheduler, topologicalSort, transitionWorkflowState } from "../domain/workflows/orchestration";
 import { searchCollectionDocuments } from "../features/collections/search-collection";
 import { EXTRACTION_CONTRACT_VERSION } from "../domain/extraction/types";
 import { getSchemaForDocumentType } from "../domain/extraction/schemas";
@@ -834,7 +833,7 @@ describe("Phase 12 workflow orchestration", () => {
   });
 
   it("plans single-asset workflows with deterministic chaining", () => {
-    const plan = planWorkflowForAsset(mockAsset as any, "OCR then optimize");
+    const plan = planWorkflowForAsset(mockAsset as FileAsset, "OCR then optimize");
     expect(plan.steps.map(s => s.capability)).toContain("pdf.ocr.recognize");
     expect(plan.steps.map(s => s.capability)).toContain("pdf.optimize.target_size");
     const ocr = plan.steps.find(s => s.capability === "pdf.ocr.recognize");
@@ -844,7 +843,7 @@ describe("Phase 12 workflow orchestration", () => {
 
   it("adapts multi-document optimize goals into explicit FOR EACH steps", () => {
     const documents = ["one", "two"].map((id, index) => ({ documentId: id, file: {} as File, originalFile: {} as File, asset: { id, name: `${id}.pdf`, sizeBytes: 1000, extension: "pdf", processingBoundary: "browser-local" as const, category: "pdf" as const, mimeType: "application/pdf" as const }, order: index, selected: true, duplicateOf: null, fingerprint: id }));
-    const plan = planWorkflowForCollection("collection-1", documents as any, "optimize each PDF below 1MB");
+    const plan = planWorkflowForCollection("collection-1", documents as CollectionDocument[], "optimize each PDF below 1MB");
     expect(plan.valid).toBe(true);
     const foreachSteps = plan.steps.filter((step) => step.foreachDocumentIds);
     expect(foreachSteps.length).toBeGreaterThan(0);

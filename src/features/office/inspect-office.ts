@@ -1,5 +1,5 @@
 import type { FileAsset, FileIntakeError } from "../../domain/files/types";
-import { DEFAULT_OFFICE_LIMITS, type OfficeAsset, type OfficeDocumentAnalysis, type OfficeDocumentType, type OfficeFeatureSignals, type OfficeFormat, type OfficeMetadata, type OfficeSheetPreview, type OfficeSlideSummary, type OfficeTextBlock, type OfficeWarning } from "../../domain/office/types";
+import { DEFAULT_OFFICE_LIMITS, type OfficeDocumentAnalysis, type OfficeDocumentType, type OfficeFeatureSignals, type OfficeFormat, type OfficeMetadata, type OfficeSheetPreview, type OfficeSlideSummary, type OfficeTextBlock, type OfficeWarning } from "../../domain/office/types";
 import { openOfficePackage, type OfficePackage } from "./office-package";
 
 const DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document" as const;
@@ -148,7 +148,7 @@ async function parsePptx(pkg: OfficePackage, limits: typeof DEFAULT_OFFICE_LIMIT
   return { features: { slideCount: ids.length, titleSignals: slides.map((slide) => slide.title).filter((value): value is string => Boolean(value)), textBoxCount: slides.reduce((sum, slide) => sum + slide.shapeCount, 0), shapeCount: slides.reduce((sum, slide) => sum + slide.shapeCount, 0), imageCount: slides.reduce((sum, slide) => sum + slide.imageCount, 0), chartCount: slides.reduce((sum, slide) => sum + slide.chartCount, 0), notesPresent: pkg.entries.some((entry) => entry.name.startsWith("ppt/notesSlides/")), themePresent: pkg.has("ppt/theme/theme1.xml"), masterPresent: pkg.entries.some((entry) => entry.name.startsWith("ppt/slideMasters/")) }, blocks, slides, extractedText: safeText(texts.join("\n"), limits.maxTextCharacters) };
 }
 
-function parseCellAddress(address: string): { column: number; row: number } {
+function _parseCellAddress(address: string): { column: number; row: number } {
   const match = /^([A-Z]+)(\d+)$/i.exec(address);
   if (!match) return { column: 0, row: 0 };
   let column = 0;

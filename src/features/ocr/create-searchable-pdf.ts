@@ -1,5 +1,5 @@
 import { PDFDocument, StandardFonts, TextRenderingMode, beginText, endText, popGraphicsState, pushGraphicsState, setFontAndSize, setTextMatrix, setTextRenderingMode, showText } from "pdf-lib";
-import type { PdfDocumentAnalysis } from "../../domain/pdfs/document-analysis";
+import type { } from "../../domain/pdfs/document-analysis";
 import { safeCoreFilename } from "../../domain/pdfs/core";
 import { validateSearchablePdfCandidate } from "../../domain/ocr/validation";
 import type { OcrLineResult, OcrPageResult, OcrSearchablePdfRequest, SearchablePdfValidation } from "../../domain/ocr/types";

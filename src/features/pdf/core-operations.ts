@@ -1,6 +1,7 @@
 import type { PdfAsset } from "../../domain/files/types";
 import type { ImageToPdfPlan, PdfMergePlan, PdfRange, PdfSplitPlan, PdfMetadataSnapshot } from "../../domain/pdfs/core";
 import { safeCoreFilename, supportedImageMime } from "../../domain/pdfs/core";
+import type { PDFDocument as PdfLibDocument } from "pdf-lib";
 import { MAX_PDF_INPUT_BYTES } from "../../domain/files/types";
 
 export interface CorePdfOutput {
@@ -19,7 +20,7 @@ function assertPdfAsset(asset: PdfAsset, file: File): void {
   if (asset.classification === "invalid" || asset.pageCount < 1) throw new Error(`${file.name}: This PDF has no usable pages.`);
 }
 
-function applyMetadata(output: any, metadata: PdfMetadataSnapshot | undefined, preserve: boolean): string[] {
+function applyMetadata(output: PdfLibDocument, metadata: PdfMetadataSnapshot | undefined, preserve: boolean): string[] {
   if (!preserve || !metadata || metadata.preservation !== "available") return preserve ? ["Source metadata was not available to preserve."] : [];
   if (metadata.title) output.setTitle(metadata.title);
   if (metadata.author) output.setAuthor(metadata.author);

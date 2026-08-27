@@ -34,6 +34,7 @@ export default tseslint.config(
   {
     files: ["**/*.{js,mjs,cjs}"],
     languageOptions: { globals: { ...globals.browser, ...globals.node } },
+    settings: { react: { version: "detect" } },
     rules: {
       "no-console": "warn",
       "no-debugger": "error",

@@ -25,7 +25,6 @@ import {
   type PdfLayoutSignals,
   type PdfMetadataAnalysis,
   type PdfPageAnalysis,
-  type PdfPageRole,
   type PdfRiskLevel,
   type PdfSignalStatus,
   type PdfStructureGroup,
@@ -87,19 +86,6 @@ function itemText(item: unknown): string {
 function itemNumber(record: AnyRecord | null, key: string): number | null {
   const value = record?.[key];
   return typeof value === "number" && Number.isFinite(value) ? value : null;
-}
-
-function textStats(items: readonly unknown[]): { itemCount: number; characterCount: number } {
-  let itemCount = 0;
-  let characterCount = 0;
-  for (const item of items) {
-    const value = itemText(item);
-    if (!value.trim()) continue;
-    itemCount += 1;
-    characterCount = Math.min(MAX_PDF_TEXT_CHARS, characterCount + value.length);
-    if (characterCount >= MAX_PDF_TEXT_CHARS) break;
-  }
-  return { itemCount, characterCount };
 }
 
 function countOperators(fnArray: readonly number[], operators: Set<number>): number {

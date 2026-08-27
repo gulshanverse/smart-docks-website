@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Archive, Download, FolderPlus, HardDrive, ShieldCheck, Trash2 } from "lucide-react";
 import type { FileAsset } from "../../domain/files/types";
 import { createProject, deleteProject, exportProject, importProjectMetadata, listProjectDocuments, listProjectHistory, listProjects, saveDocumentToProject } from "../../domain/projects/store";
@@ -14,8 +14,8 @@ export function ProjectsWorkspace({ asset, currentFile }: Props) {
   const [description, setDescription] = useState("Local-only document workspace");
   const [message, setMessage] = useState("Projects are stored locally on this device.");
   const [saving, setSaving] = useState(false);
-  useEffect(() => { void refresh(); }, []);
-  async function refresh(projectId = selected?.projectId) { const next = await listProjects(); setProjects(next); const project = next.find((item) => item.projectId === projectId) ?? next[0] ?? null; setSelected(project); if (project) { setDocuments(await listProjectDocuments(project.projectId)); setHistory(await listProjectHistory(project.projectId)); } else { setDocuments([]); setHistory([]); } }
+  const refresh = useCallback(async (projectId = selected?.projectId) => { const next = await listProjects(); setProjects(next); const project = next.find((item) => item.projectId === projectId) ?? next[0] ?? null; setSelected(project); if (project) { setDocuments(await listProjectDocuments(project.projectId)); setHistory(await listProjectHistory(project.projectId)); } else { setDocuments([]); setHistory([]); } }, [selected?.projectId]);
+  useEffect(() => { void refresh(); }, [refresh]);
   async function create() { const project = await createProject(name, description); setMessage(`Created ${project.name}. It is local-only and currently has no documents.`); await refresh(project.projectId); }
   async function save() { if (!selected || !asset || !currentFile || saving) return; setSaving(true); try { const result = await saveDocumentToProject(selected, asset, await currentFile.arrayBuffer()); setMessage(`${result.document.fileName} saved as the immutable original. Future transformations create new versions.`); await refresh(result.project.projectId); } catch (error) { setMessage(error instanceof Error ? error.message : "The document could not be saved."); } finally { setSaving(false); } }
   async function exportMetadata() { if (!selected) return; const pack = await exportProject(selected, "metadata"); const blob = new Blob([JSON.stringify(pack, null, 2)], { type: "application/json" }); const url = URL.createObjectURL(blob); const anchor = document.createElement("a"); anchor.href = url; anchor.download = `${selected.name.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}-project.json`; anchor.click(); URL.revokeObjectURL(url); setMessage("Metadata-only project export created. Original bytes were excluded."); }

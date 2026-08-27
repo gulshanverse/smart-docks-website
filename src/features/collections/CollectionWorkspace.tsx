@@ -15,7 +15,7 @@ interface CollectionOutput { fileName: string; downloadUrl: string; status: "val
 function makeDocument(file: File, asset: FileAsset, order: number): CollectionDocument { return { documentId: asset.id, file, originalFile: file, asset, order, selected: true, duplicateOf: null, fingerprint: fingerprintFile(file) }; }
 function formatAsset(asset: FileAsset): string { return asset.category === "pdf" ? `PDF · ${asset.pageCount} pages` : asset.category === "image" ? `${asset.extension.toUpperCase()} · ${asset.width} × ${asset.height}` : `${asset.format.toUpperCase()} · ${asset.analysis.documentType}`; }
 
-export function CollectionWorkspace({ onContinuePdf }: CollectionWorkspaceProps) {
+export function CollectionWorkspace({ onContinuePdf: _onContinuePdf }: CollectionWorkspaceProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const urlsRef = useRef<string[]>([]);
   const [documents, setDocuments] = useState<CollectionDocument[]>([]);

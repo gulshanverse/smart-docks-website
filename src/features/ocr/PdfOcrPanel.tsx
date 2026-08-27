@@ -34,7 +34,7 @@ export function PdfOcrPanel({ file, asset, onContinueResult }: PdfOcrPanelProps)
   useEffect(() => { abortRef.current?.abort(); clearOutput(); setAnalysis(null); setPlan(null); setOcr(null); setStructure(null); setProgress(null); setSearchResult(null); setNotice(null); }, [file]);
 
   const extractedText = useMemo(() => ocr ? extractBoundedOcrText(ocr.pages) : "", [ocr]);
-  const hasRecognizedText = Boolean(ocr && (ocr.processedPages.length > 0 || ocr.textPresence === "detected"));
+  const _hasRecognizedText = Boolean(ocr && (ocr.processedPages.length > 0 || ocr.textPresence === "detected"));
   const actionLabel = plan?.recommendation === "not-needed" ? "Extract searchable text" : "Run OCR locally";
 
   function clearOutput() { if (outputUrlRef.current) URL.revokeObjectURL(outputUrlRef.current); outputUrlRef.current = null; setOutputUrl(null); setOutputFile(null); setValidation(null); }

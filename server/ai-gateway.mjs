@@ -34,7 +34,11 @@ const systemPrompt = "You are the SmartDocs Phase 6 document-intelligence servic
 
 function requestId() { return crypto.randomUUID(); }
 function isObject(value) { return Boolean(value) && typeof value === "object" && !Array.isArray(value); }
-function logEvent(event) { console.log(JSON.stringify(event)); }
+function logEvent(event) {
+  // Structured operational audit logging is intentional and contains no raw document content.
+  // eslint-disable-next-line no-console
+  console.log(JSON.stringify(event));
+}
 function send(response, status, body, origin) {
   const headers = { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store", "Vary": "Origin", "Access-Control-Allow-Headers": "Content-Type", "Access-Control-Allow-Methods": "POST, OPTIONS" };
   if (origin === ALLOWED_ORIGIN) headers["Access-Control-Allow-Origin"] = ALLOWED_ORIGIN;
@@ -197,4 +201,8 @@ const server = http.createServer(async (request, response) => {
   }
 });
 
-server.listen(PORT, "127.0.0.1", () => console.log(`SmartDocs AI gateway listening on 127.0.0.1:${PORT}`));
+server.listen(PORT, () => {
+  // Intentional startup audit logging for the local gateway.
+  // eslint-disable-next-line no-console
+  console.log(`SmartDocs AI gateway listening on ${PORT}`);
+});

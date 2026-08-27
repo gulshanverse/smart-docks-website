@@ -1,6 +1,6 @@
 import type { DocumentIntelligenceSnapshot, PdfDocumentAnalysis, PdfPageRole, PdfStructureSignals } from "../pdfs/document-analysis";
 import type { PdfFeatureChange } from "../pdfs/preservation";
-import type { ProcessingBoundary } from "../files/types";
+import type { } from "../files/types";
 
 export const MAX_OCR_PAGES_PER_RUN = 24;
 export const MAX_OCR_PAGE_TEXT_CHARS = 6_000;

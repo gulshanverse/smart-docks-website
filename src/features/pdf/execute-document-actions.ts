@@ -1,6 +1,7 @@
 import * as pdfjsLib from "pdfjs-dist";
 import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.mjs?url";
 import { PDFDocument, StandardFonts, degrees, rgb } from "pdf-lib";
+import type { PDFPage, PDFFont } from "pdf-lib";
 import type { PdfAsset } from "../../domain/files/types";
 import type { DocumentAction, DocumentActionPlan, PdfRect } from "../../domain/actions/types";
 import { MAX_TEXT_LENGTH } from "../../domain/actions/types";
@@ -122,7 +123,7 @@ async function renderPageWithOverlays(sourceBytes: Uint8Array, pageNumber: numbe
   }
 }
 
-function applyPageActions(page: any, actions: DocumentAction[], pageNumber: number, font: any): void {
+function applyPageActions(page: PDFPage, actions: DocumentAction[], pageNumber: number, font: PDFFont): void {
   for (const action of actions) {
     for (const target of action.targets.filter((item) => item.page.sourcePageNumber === pageNumber)) {
       const rect = rectFor(action, target);

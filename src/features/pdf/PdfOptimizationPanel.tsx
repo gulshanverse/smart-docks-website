@@ -88,7 +88,6 @@ export function PdfOptimizationPanel({ file, asset, onContinueResult }: PdfOptim
     setNotice(null);
   }, [sourceKey]);
 
-  const selectedMode = qualityModes.find((item) => item.value === mode) ?? qualityModes[1];
   const targetHint = useMemo(() => parsePdfIntent(goal), [goal]);
   const percent = progressPercent(progress);
 

@@ -1,5 +1,6 @@
 import * as pdfjsLib from "pdfjs-dist";
 import type { PDFDocumentProxy, PDFPageProxy } from "pdfjs-dist";
+import type { PDFDocument as PdfLibDocument } from "pdf-lib";
 import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.mjs?url";
 import type { PdfAsset } from "../../domain/files/types";
 import { classifyPdf, type PdfInspectionSignals } from "../../domain/pdfs/types";
@@ -179,7 +180,7 @@ async function classifyPage(page: PDFPageProxy): Promise<{ hasText: boolean; has
   return { hasText: text.itemCount > 0, hasRaster: hasRasterOperator(operators), width: viewport.width, height: viewport.height };
 }
 
-async function applyBasicMetadata(output: any, file: File, plan: PdfOptimizationPlan): Promise<string[]> {
+async function applyBasicMetadata(output: PdfLibDocument, file: File, plan: PdfOptimizationPlan): Promise<string[]> {
   if (plan.metadataPolicy === "remove-non-essential") {
     output.setTitle("");
     output.setAuthor("");

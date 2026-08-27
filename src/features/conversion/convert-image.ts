@@ -1,7 +1,7 @@
 import type { ConversionBackground, ConversionOutput, ConversionPlan, ConversionQuality } from "../../domain/conversions/types";
-import { extensionForConversionFormat, mimeForConversionFormat } from "../../domain/conversions/types";
+import { mimeForConversionFormat } from "../../domain/conversions/types";
 import { conversionFilename } from "../../domain/conversions/naming";
-import { validateImageOutput, targetAchieved } from "../../domain/conversions/validation";
+import { validateImageOutput } from "../../domain/conversions/validation";
 
 interface ImageConversionOptions {
   signal?: AbortSignal;

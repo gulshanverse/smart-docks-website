@@ -1,8 +1,9 @@
 import * as pdfjsLib from "pdfjs-dist";
+import type { PDFPageProxy } from "pdfjs-dist";
 import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.mjs?url";
 import type { PdfImageFormat, PdfImageRenderPlan, BlankPageSignals } from "../../domain/pdfs/core";
 import { classifyBlankPage } from "../../domain/pdfs/core";
-import { normalizePdfPageGeometry, normalizePdfPageText } from "../../domain/pdfs/pages";
+import { normalizePdfPageText } from "../../domain/pdfs/pages";
 import { MAX_PDF_INPUT_BYTES } from "../../domain/files/types";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
@@ -44,7 +45,7 @@ async function openPdf(file: File) {
   }
 }
 
-async function renderCanvas(page: any, scale: number, maxDimension: number, signal?: AbortSignal): Promise<{ canvas: HTMLCanvasElement; context: CanvasRenderingContext2D }> {
+async function renderCanvas(page: PDFPageProxy, scale: number, maxDimension: number, signal?: AbortSignal): Promise<{ canvas: HTMLCanvasElement; context: CanvasRenderingContext2D }> {
   const initial = page.getViewport({ scale });
   const fit = Math.min(1, maxDimension / Math.max(initial.width, initial.height));
   const viewport = page.getViewport({ scale: scale * fit });

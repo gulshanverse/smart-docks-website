@@ -13,7 +13,6 @@ export function findDuplicate(document: CollectionDocument, documents: readonly 
 }
 
 function allCategory(documents: readonly CollectionDocument[], category: FileAsset["category"]): boolean { return documents.every((document) => document.asset.category === category); }
-function allOffice(documents: readonly CollectionDocument[]): boolean { return allCategory(documents, "office"); }
 function allPdf(documents: readonly CollectionDocument[]): boolean { return allCategory(documents, "pdf"); }
 function allSearchableType(documents: readonly CollectionDocument[]): boolean { return documents.every((document) => document.asset.category === "pdf" || document.asset.category === "office"); }
 

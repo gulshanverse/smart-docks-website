@@ -1,4 +1,4 @@
-import { ACTION_IMPACTS, ACTION_PLAN_VERSION, MAX_ACTIONS, type ActionPlanResult, type ActionType, type DocumentAction, type DocumentActionPlan, type PdfRect } from "./types";
+import { ACTION_IMPACTS, ACTION_PLAN_VERSION, MAX_ACTIONS, type ActionPlanResult, type ActionType, type DocumentAction, type PdfRect } from "./types";
 
 function validRect(rect: PdfRect | undefined): boolean {
   if (!rect) return false;

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Brain, Check, ChevronRight, CircleAlert, Copy, FileJson, Search, ShieldCheck, Square, WandSparkles, X } from "lucide-react";
+import { Brain, Check, CircleAlert, Search, ShieldCheck, Square, WandSparkles, X } from "lucide-react";
 import type { PdfAsset } from "../../domain/files/types";
 import type { AiConfidence, AiDocumentResponse, AiError, AiOperation, AiOperationProgress, AiOperationState, AiSourceReference } from "../../domain/ai/types";
 import { runAiOperation, type AiProviderKind } from "./run-ai-operation";
@@ -36,6 +36,19 @@ export function AiDocumentPanel({ file, asset, onNavigateToPage }: AiDocumentPan
   }, [file, asset]);
 
   useEffect(() => () => { abortRef.current?.abort(); }, []);
+
+  useEffect(() => {
+    if (!consentOpen) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      setConsentOpen(false);
+      setPendingOperation(null);
+      setState("idle");
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [consentOpen]);
 
   async function execute(nextOperation: AiOperation) {
     if (!file || !asset) { setNotice({ message: "Add a PDF before requesting document understanding." }); return; }

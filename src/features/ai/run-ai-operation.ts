@@ -1,7 +1,7 @@
 import { buildAiRequest } from "../../domain/ai/context";
 import { validateAiRequestLimits, validateAiResponse } from "../../domain/ai/validation";
 import { schemaForDocumentType } from "../../domain/ai/schemas";
-import type { AiDocumentProvider, AiDocumentResponse, AiFailureResponse, AiOperation, AiOperationProgress } from "../../domain/ai/types";
+import type { AiDocumentResponse, AiFailureResponse, AiOperation, AiOperationProgress } from "../../domain/ai/types";
 import { operationForProvider } from "./gateway-provider";
 import { prepareAiDocument, refreshAiDocumentContext, type PreparedAiDocument } from "./prepare-ai-document";
 import { DeterministicMockAiProvider } from "./mock-provider";

@@ -158,7 +158,6 @@ export async function convertImagesToPdf(files: readonly File[], plan: Conversio
   const output = await PDFDocument.create();
   const warnings = [...plan.warnings];
   if (plan.background === "transparent") warnings.push("PDF pages do not preserve transparency semantics; a white background was used.");
-  let totalBytes = 0;
   let firstWidth = 0;
   let firstHeight = 0;
   for (let index = 0; index < files.length; index += 1) {
@@ -175,7 +174,6 @@ export async function convertImagesToPdf(files: readonly File[], plan: Conversio
       if (plan.background === "black") { page.drawRectangle({ x: 0, y: 0, width: pageSize.width, height: pageSize.height, color: rgb(0, 0, 0) }); }
       const rect = fitRect(image.width, image.height, pageSize.width, pageSize.height, plan.marginPoints ?? 18, plan.fitMode ?? "contain");
       page.drawImage(embedded, rect);
-      totalBytes += file.size;
       options.onProgress?.(index + 1, files.length);
     } finally {
       image.cleanup();

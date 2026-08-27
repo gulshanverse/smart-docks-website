@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowDown, ArrowUp, Check, Download, FileImage, FileOutput, FilePlus2, LockKeyhole, RotateCcw, Trash2, X } from "lucide-react";
 import type { FileAsset, ImageAsset, PdfAsset } from "../../domain/files/types";
 import type { ConversionBackground, ConversionFormat, ConversionIntent, ConversionOutput, ConversionPlan, ConversionQuality, ConversionResolution } from "../../domain/conversions/types";
-import { CONVERSION_CONTRACT_VERSION, mimeForConversionFormat, type ConversionResultSet, type ConversionSource } from "../../domain/conversions/types";
+import { CONVERSION_CONTRACT_VERSION, type ConversionResultSet, type ConversionSource } from "../../domain/conversions/types";
 import { createConversionPlan } from "../../domain/conversions/planner";
 import { parseByteTarget, parseConversionIntent } from "../../domain/intents/parse-intent";
 import { inspectFile } from "../intake/inspect-file";
@@ -16,6 +16,7 @@ interface ConversionPanelProps {
   currentFile: File | null;
   currentAsset: FileAsset | null;
   onContinueResult?: (file: File, asset: PdfAsset) => void;
+  onClearParentNotice?: () => void;
 }
 
 interface ImageInput {
@@ -80,7 +81,7 @@ function isAbortError(error: unknown): boolean {
   return error instanceof DOMException && error.name === "AbortError";
 }
 
-export function ConversionPanel({ currentFile, currentAsset, onContinueResult }: ConversionPanelProps) {
+export function ConversionPanel({ currentFile, currentAsset, onContinueResult, onClearParentNotice }: ConversionPanelProps) {
   const [pdfInput, setPdfInput] = useState<PdfInput | null>(currentFile && currentAsset?.category === "pdf" ? { file: currentFile, asset: currentAsset, source: sourceFromPdf(currentFile, currentAsset) } : null);
   const [imageInputs, setImageInputs] = useState<ImageInput[]>(currentFile && currentAsset?.category === "image" ? [{ file: currentFile, asset: currentAsset, source: sourceFromImage(currentFile, currentAsset, 0) }] : []);
   const [goal, setGoal] = useState("");
@@ -138,6 +139,7 @@ export function ConversionPanel({ currentFile, currentAsset, onContinueResult }:
   }
 
   function applyParsedGoal(parsedGoal: string) {
+    onClearParentNotice?.();
     const parsed = parseConversionIntent(parsedGoal);
     setGoal(parsedGoal);
     if (parsed.status !== "valid" || !parsed.intent) {
@@ -157,7 +159,7 @@ export function ConversionPanel({ currentFile, currentAsset, onContinueResult }:
     if (next.marginPoints !== null) setMarginPoints(String(next.marginPoints));
     if (next.background) setBackground(next.background);
     if (next.targetSize) { setTargetSizeText(next.targetSize.label); setTargetScopeText(next.targetSize.scope === "per-file" ? "per page/file" : "total"); }
-    setNotice(parsed.message);
+    setNotice(null);
     setPlan(null);
   }
 
@@ -223,6 +225,7 @@ export function ConversionPanel({ currentFile, currentAsset, onContinueResult }:
   }
 
   function buildPlan() {
+    onClearParentNotice?.();
     setNotice(null);
     const intent = makeIntent();
     const planResult = createConversionPlan(sourceFiles, intent, { metadataPolicy: "discard" });
@@ -233,6 +236,7 @@ export function ConversionPanel({ currentFile, currentAsset, onContinueResult }:
   }
 
   async function runConversion() {
+    onClearParentNotice?.();
     if (!plan) { buildPlan(); return; }
     clearResultUrls();
     setNotice(null);

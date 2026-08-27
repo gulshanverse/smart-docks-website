@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Check, Download, Eye, Plus, ShieldAlert, Trash2, X } from "lucide-react";
 import type { PdfAsset } from "../../domain/files/types";
-import { ACTION_IMPACTS, type ActionType, type DocumentAction, type DocumentActionPlan, type PdfRect } from "../../domain/actions/types";
+import { type ActionType, type DocumentAction, type DocumentActionPlan, type PdfRect } from "../../domain/actions/types";
 import { createUserAction, planDocumentActions } from "../../domain/actions/planner";
 import { createActionHistory, pushAction, redoAction, undoAction, type ActionHistory } from "../../domain/actions/history";
 import { pageIdentity } from "../../domain/actions/types";
@@ -62,7 +62,7 @@ export function PdfActionsPanel({ file, asset, onContinueResult, onNavigateToPag
   const [searching, setSearching] = useState(false);
   const [reason, setReason] = useState("User-selected document edit");
   const [queue, setQueue] = useState<DocumentAction[]>([]);
-  const [reviewing, setReviewing] = useState(false);
+  const [, setReviewing] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [status, setStatus] = useState<"ready" | "running" | "completed" | "failed" | "cancelled">("ready");
   const [message, setMessage] = useState<string | null>(null);
