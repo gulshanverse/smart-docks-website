@@ -63,7 +63,7 @@ import { buildFinalDeliverable, buildPackageManifest, buildQualityGates, canRetr
 import { reconcileExtractionRecords } from "../domain/automation/reconciliation";
 import { PROJECT_CONTRACT_VERSION, PROJECT_LIMITS, validateProjectDocumentTransition, validateProjectTransition } from "../domain/projects/types";
 import { createProject, deleteProject, exportProject, importProjectMetadata, listProjectDocuments, saveDocumentToProject, validateImportPackage } from "../domain/projects/store";
-import { createIndexedDbStorage } from "../features/storage/indexeddb";
+import { checksumValue, createIndexedDbStorage } from "../features/storage/indexeddb";
 
 describe("byte units", () => {
   it("uses decimal KB and MB values", () => {
@@ -933,6 +933,17 @@ describe("Phase 15 persistent project workspace", () => {
     expect(validateProjectDocumentTransition("DELETED", "READY")).toBe(false);
   });
 
+  it("uses stable cryptographic checksums and initializes the storage schema", async () => {
+    const first = await checksumValue(new Uint8Array([1, 2, 3]));
+    const same = await checksumValue(new Uint8Array([1, 2, 3]));
+    const changed = await checksumValue(new Uint8Array([1, 2, 4]));
+    expect(first).toBe(same);
+    expect(first).not.toBe(changed);
+    const storage = createIndexedDbStorage();
+    await storage.migrate();
+    expect((await storage.read<{ schemaVersion: number }>("migration", "project-storage-schema"))?.value.schemaVersion).toBe(1);
+  });
+
   it("provides async bounded storage CRUD with a memory fallback", async () => {
     const storage = createIndexedDbStorage();
     await storage.create("settings", "phase15-test", { version: PROJECT_CONTRACT_VERSION, localOnly: true });
@@ -960,6 +971,7 @@ describe("Phase 15 persistent project workspace", () => {
     const saved = await saveDocumentToProject(project, asset, bytes);
     expect(saved.document.status).toBe("READY");
     expect(saved.version.isOriginal).toBe(true);
+    expect(saved.version.checksum).toMatch(/^[a-f0-9]{64}$/);
     expect(saved.project.storageUsageBytes).toBe(4);
     expect((await listProjectDocuments(project.projectId)).length).toBe(1);
     const metadata = await exportProject(saved.project, "metadata");

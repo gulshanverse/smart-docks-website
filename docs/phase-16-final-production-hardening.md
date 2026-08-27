@@ -31,3 +31,9 @@ The Phase 15 audit found that project deletion removed document metadata but cou
 ## Known release limitations
 
 SmartDocs remains a local-first release candidate, not a hosted collaboration product. It does not claim universal Office round-trips, formula recalculation, cloud backup, accounts, billing, public sharing, arbitrary code execution, autonomous destructive actions, forensic metadata guarantees, or complete cross-browser IndexedDB recovery semantics. OCR and large PDF operations remain resource-bounded browser work. The optional Phase 6 gateway remains the only external AI boundary and requires explicit user consent.
+
+## Final v1.0 release-hardening pass
+
+The follow-up release audit addressed reproducibility and release metadata gaps. Floating `latest` declarations were replaced with exact tested versions, pnpm was pinned to 11.21.0, and the existing Tesseract build approval is explicit in `pnpm-workspace.yaml`. A real ESLint flat configuration now runs separately from TypeScript, with correctness rules failing CI and legacy unused/explicit-any findings visible as warnings. A strict GitHub Actions workflow now runs on pull requests and pushes to `main` with frozen installation, typecheck, lint, tests, and production build.
+
+The package is now versioned `1.0.0-rc.1`, the HTML title and description identify SmartDocs as an intelligent local-first document workspace, and the Vite localhost gateway proxy is documented as development/preview-only. Persisted records now receive Web Crypto SHA-256 checksums where the platform supports Web Crypto, saved document versions carry the byte checksum, and storage migration initialization records the schema version while rejecting unsupported future versions.

@@ -135,7 +135,7 @@ function getMetadataField(info: AnyRecord, metadata: unknown, ...names: string[]
   return null;
 }
 
-function metadataFromPdf(metadataResult: { info: Object; metadata: unknown } | null): PdfMetadataAnalysis {
+function metadataFromPdf(metadataResult: { info: object; metadata: unknown } | null): PdfMetadataAnalysis {
   if (!metadataResult) return emptyMetadataAnalysis();
   const info = asRecord(metadataResult.info) ?? {};
   const metadata = metadataResult.metadata;

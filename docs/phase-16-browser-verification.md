@@ -7,3 +7,7 @@ The application shell rendered without runtime errors. The Phase 15 Projects wor
 The browser smoke path showed the local-only disclosure and did not trigger an AI request, upload endpoint, account flow, background synchronization, or cloud backup. Existing workflow controls remained available below the project workspace. The Phase 16 source audit additionally confirmed that imported project metadata is treated as untrusted data and cannot auto-execute workflows.
 
 The full production candidate still requires real-device coverage across browser versions for memory pressure, quota exhaustion, OCR worker interruption, malformed PDFs, Office packages, and download permission behavior. These are documented release limitations rather than claims of universal browser certification.
+
+## Final release metadata smoke test
+
+Chromium loaded the release candidate at the available local Vite port with the title `SmartDocs — Intelligent Document Workspace`. The shell rendered the local-first intake messaging, current Projects workspace, existing Phase 12–15 tools, and updated final roadmap. The roadmap now marks persistent local projects as done and production hardening/v1.0 candidate as the current milestone; the footer reads `v1.0 RC · Phase 16 final hardening`. No runtime error was observed.

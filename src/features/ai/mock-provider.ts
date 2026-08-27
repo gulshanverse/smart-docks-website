@@ -27,15 +27,15 @@ function classify(request: AiDocumentRequest): AiClassificationResult {
 }
 function summary(request: AiDocumentRequest): AiSummaryResult {
   const body = text(request); const refs = sources(request).slice(0, 3); const sentence = body.split(/(?<=[.!?])\s+/)[0]?.slice(0, 600) || "Not found in document.";
-  const dates = findFact(request, [/(?:due|effective|issue|expiry|appointment|filing|signature)\s+date\s*[:\-]?\s*([^.;\n]+)/i, /(\d{1,2}\s+[A-Za-z]+\s+\d{4})/]);
-  const amounts = findFact(request, [/(?:total|amount|subtotal|tax)\s*[:\-]?\s*([^.;\n]+)/i, /([₹$€£]\s?[\d,]+(?:\.\d{2})?)/]);
+  const dates = findFact(request, [/(?:due|effective|issue|expiry|appointment|filing|signature)\s+date\s*[:-]?\s*([^.;\n]+)/i, /(\d{1,2}\s+[A-Za-z]+\s+\d{4})/]);
+  const amounts = findFact(request, [/(?:total|amount|subtotal|tax)\s*[:-]?\s*([^.;\n]+)/i, /([₹$€£]\s?[\d,]+(?:\.\d{2})?)/]);
   return { shortSummary: sentence, detailedSummary: body ? `The bounded document context begins: ${sentence}` : "Not found in document.", keyPoints: body ? [{ text: sentence, source: refs }] : [], purpose: { value: body ? "The purpose could not be determined with certainty from the bounded context." : null, source: refs }, importantDates: dates ? [normalizedFact("important_date", dates.value, "medium", dates.source)] : [], importantEntities: [], importantAmounts: amounts ? [normalizedFact("important_amount", amounts.value, "medium", amounts.source)] : [], warnings: ["AI-generated summary from the deterministic mock provider; verify important information against the source document."] };
 }
 function answer(request: AiDocumentRequest): AiAnswerResult {
   const query = (request.query ?? "").toLocaleLowerCase();
   if (!query.trim()) return { answer: "I couldn't find that in the document because no question was supplied.", confidence: "unknown", sourceStatus: "not-found", sources: [], conflicts: [], warnings: [] };
-  const due = query.includes("due") ? findFact(request, [/(?:due|payment)\s+(?:date|by)\s*[:\-]?\s*([^.;\n]+)/i]) : null;
-  const issuer = query.includes("who") || query.includes("issuer") ? findFact(request, [/(?:issued by|seller|merchant|from)\s*[:\-]?\s*([^.;\n]+)/i]) : null;
+  const due = query.includes("due") ? findFact(request, [/(?:due|payment)\s+(?:date|by)\s*[:-]?\s*([^.;\n]+)/i]) : null;
+  const issuer = query.includes("who") || query.includes("issuer") ? findFact(request, [/(?:issued by|seller|merchant|from)\s*[:-]?\s*([^.;\n]+)/i]) : null;
   const found = due ?? issuer ?? findFact(request, [new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`, "i")]);
   if (!found) return { answer: "I couldn't find that in the document.", confidence: "unknown", sourceStatus: "not-found", sources: [], conflicts: [], warnings: [] };
   return { answer: found.value, confidence: "medium", sourceStatus: "supported", sources: found.source, conflicts: [], warnings: ["AI-generated answer from the deterministic mock provider; verify against the source document."] };
@@ -44,7 +44,7 @@ function extraction(request: AiDocumentRequest): AiExtractionResult {
   const schemaId = request.schemaId; const fields = request.context.structure.sections.slice(0, 0).map(() => normalizedFact("unused", null, "unknown", []));
   const invoice = schemaId === "invoice" ? ["invoice_number", "invoice_date", "due_date", "seller", "buyer", "subtotal", "tax", "total", "currency", "payment_terms"] : ["title", "purpose", "important_dates", "important_entities", "important_amounts"];
   const extracted = invoice.map((field) => {
-    const found = findFact(request, [new RegExp(`${field.replace(/_/g, "[ _-]")}\\s*[:\\-]?\\s*([^.;\\n]+)`, "i")]);
+    const found = findFact(request, [new RegExp(`${field.replace(/_/g, "[ _-]")}\\s*[:-]?\\s*([^.;\\n]+)`, "i")]);
     return normalizedFact(field, found?.value ?? null, found ? "medium" : "unknown", found?.source ?? [], found ? "verified" : "not-found");
   });
   return { schemaId, schemaVersion: request.schemaVersion, documentType: classify(request).documentType, fields: [...fields, ...extracted], entities: [], tables: [], warnings: ["Missing fields are explicitly marked not-found; no values were inferred."] };

@@ -9,7 +9,7 @@ export function normalizeDateValue(rawValue: string | null): string | null {
   const raw = rawValue.trim();
   const iso = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if (iso) return raw;
-  const numeric = raw.match(/^(\d{1,2})[/.\-](\d{1,2})[/.\-](\d{4})$/);
+  const numeric = raw.match(/^(\d{1,2})[/.-](\d{1,2})[/.-](\d{4})$/);
   if (numeric) return `${numeric[3]}-${numeric[2].padStart(2, "0")}-${numeric[1].padStart(2, "0")}`;
   const named = raw.match(/^(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})$/);
   if (!named) return null;

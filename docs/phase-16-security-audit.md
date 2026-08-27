@@ -18,3 +18,9 @@ The audit covered application source, server boundary code, package configuratio
 | Dependency audit | Production dependency audit reported no known high-severity vulnerabilities. | Pass |
 
 The production boundary remains local-first. No analytics, background upload, cloud synchronization, or new provider was introduced during hardening. The security review found no release-blocking vulnerability within the repository's implemented scope.
+
+## Follow-up release audit
+
+Dependency declarations are now exact and reproducible. The new lint configuration reports existing `any`, unused-import, and hook-dependency findings as warnings while failing on parser, unsafe-code, unreachable-code, debugger, and other correctness errors. No provider credentials or raw document payloads were added to client code. The Vite localhost proxy is explicitly confined to development/preview; production requires an explicitly configured gateway endpoint and server-side credentials.
+
+Persisted document bytes and metadata are now SHA-256 addressed when Web Crypto is available. The storage adapter writes an explicit schema record and rejects a stored schema newer than the supported database version. Project deletion removes related versions, artifacts, and byte records before writing the terminal deleted state.
