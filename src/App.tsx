@@ -305,6 +305,7 @@ function App() {
           </a>
           <nav className="site-nav" aria-label="Primary navigation">
             <a className="nav-link active" href="#workspace">Workspace</a>
+            <a className="nav-link" href="#projects">History</a>
             <a className="nav-link" href="#how-it-works">How it works</a>
           </nav>
           <div className="privacy-chip"><LockKeyhole size={14} /> Processed locally</div>
@@ -315,9 +316,9 @@ function App() {
         <section id="workspace" className="workspace-section" aria-labelledby="workspace-title">
           <div className="container">
             <div className="workspace-intro">
-              <p className="eyebrow"><span className="eyebrow-line" /> Verified document intelligence</p>
-              <h1 id="workspace-title">Your document.<br /><span>One clear goal.</span></h1>
-              <p>Upload a file and tell SmartDocs what you want done. You will see a clear plan before anything changes.</p>
+              <p className="eyebrow"><span className="eyebrow-line" /> Precise document automation</p>
+              <h1 id="workspace-title">What do you want to get done?</h1>
+              <p>Drop a document. Tell SmartDocs your goal. Get a verified result — no learning curve.</p>
             </div>
 
             <div className="workflow-layout">
@@ -325,12 +326,22 @@ function App() {
                 <div className="card-label"><span className="label-icon"><Upload size={15} /></span> 01 · Add a file</div>
                 <input ref={inputRef} className="file-picker-input" type="file" accept="image/jpeg,image/png,image/webp,application/pdf,.pdf,.docx,.docm,.doc,.pptx,.pptm,.ppt,.xlsx,.xlsm,.xls" aria-label="Choose a JPEG, PNG, WebP image, or PDF" onChange={(event) => void handleFile(event.target.files?.[0])} />
                 {!asset ? (
+                  <>
                   <div className="dropzone" role="button" tabIndex={0} onClick={() => inputRef.current?.click()} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") inputRef.current?.click(); }} onDragOver={(event) => event.preventDefault()} onDrop={handleDrop} data-testid="dropzone">
-                    <span className="dropzone-icon"><FileImage size={25} /></span>
-                    <strong>{readingFile ? "Inspecting file…" : "Drop an image, PDF, or Office file here"}</strong>
-                    <span>or choose JPEG, PNG, WebP, PDF, DOCX, PPTX, or XLSX</span>
-                    <small>Images: 25 MB · PDFs/Office: 50 MB</small>
+                    <span className="dropzone-icon"><Upload size={25} /></span>
+                    <strong>{readingFile ? "Inspecting file…" : "Drop a file anywhere in this area"}</strong>
+                    <span>or choose from your device</span>
+                    <span className="dropzone-choose">Choose file</span>
+                    <span className="dropzone-types"><b>PDF</b><b>Images</b><b>Office</b></span>
+                    <small>Files stay on your device unless you explicitly choose an AI action.</small>
                   </div>
+                  <div className="starter-tasks" aria-label="Start with a task">
+                    <p>Or start with a task</p>
+                    <div className="starter-task-grid">
+                      {["Compress a PDF under 1 MB", "Make this PDF searchable (OCR)", "Convert this PDF to JPG images", "Extract structured info from doc", "Merge multiple documents safely", "Protect PDF with password"].map((starter) => <button type="button" key={starter} onClick={() => handleGoalChange(starter)}>{starter}<ArrowRight size={14} /></button>)}
+                    </div>
+                  </div>
+                  </>
                 ) : (
                   asset.category === "image" ? <div className="asset-preview" data-testid="asset-preview">
                     <img src={asset.previewUrl} alt={`Preview of ${asset.name}`} />
