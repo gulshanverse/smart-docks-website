@@ -15,3 +15,7 @@ Chromium loaded the release candidate at the available local Vite port with the 
 ## Production-build smoke verification
 
 The actual Vite production preview loaded at `http://localhost:4179/` with title `SmartDocs — Intelligent Document Workspace`. The local-first disclosure was present. At the captured desktop viewport, `window.innerWidth` was 1280 and `document.documentElement.scrollWidth` was 1265, so no horizontal overflow was observed. The DOM contained the application root and no runtime error was reported during load.
+
+## Actual production-preview network audit
+
+Performance entries during ordinary production-shell load were limited to same-origin JavaScript, CSS, the PDF worker, and favicon assets on `localhost:4179`; no `/api/ai`, analytics, telemetry, upload, or external provider request appeared. The console contained no runtime error output during this smoke load. This verifies the idle shell only; document intake, OCR, and explicitly consented AI requests require separate action and were not inferred from the idle-load result.
