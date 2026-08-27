@@ -9,12 +9,18 @@
 | Gate | Result |
 |---|---|
 | `pnpm typecheck` | Passed |
-| `pnpm test` | Passed: 96 deterministic tests |
+| `pnpm test` | Passed: 97 deterministic tests |
 | `pnpm build` | Passed |
-| `pnpm lint` | Passed through the configured typecheck-backed command |
+| `pnpm lint` | Passed with 0 blocking errors; 59 legacy warnings remain visible |
+| `pnpm install --frozen-lockfile` | Passed |
+| `pnpm audit --prod --audit-level high` | Passed: no known production vulnerabilities |
 | `git diff --check` | Passed |
 | Production dependency audit | No known high-severity production vulnerabilities |
 | Chromium smoke verification | Passed for project creation, explicit persistence, document library, history, privacy disclosure, and workspace continuity |
+
+## CI evidence
+
+The GitHub Actions run `33049584933` failed before dependency installation because `setup-node` attempted to resolve pnpm caching before the pnpm executable was installed. That result is not counted as a passed quality gate. The workflow was corrected by moving `pnpm/action-setup@v4` before `actions/setup-node@v4`; a new post-push run must be inspected before claiming GitHub CI green.
 
 ## Release checklist
 

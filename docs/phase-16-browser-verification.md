@@ -11,3 +11,7 @@ The full production candidate still requires real-device coverage across browser
 ## Final release metadata smoke test
 
 Chromium loaded the release candidate at the available local Vite port with the title `SmartDocs — Intelligent Document Workspace`. The shell rendered the local-first intake messaging, current Projects workspace, existing Phase 12–15 tools, and updated final roadmap. The roadmap now marks persistent local projects as done and production hardening/v1.0 candidate as the current milestone; the footer reads `v1.0 RC · Phase 16 final hardening`. No runtime error was observed.
+
+## Production-build smoke verification
+
+The actual Vite production preview loaded at `http://localhost:4179/` with title `SmartDocs — Intelligent Document Workspace`. The local-first disclosure was present. At the captured desktop viewport, `window.innerWidth` was 1280 and `document.documentElement.scrollWidth` was 1265, so no horizontal overflow was observed. The DOM contained the application root and no runtime error was reported during load.
