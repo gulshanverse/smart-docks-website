@@ -5,13 +5,18 @@ import {
   ChevronDown,
   Download,
   FileImage,
+  Files,
+  FolderOpen,
   HardDrive,
   LockKeyhole,
+  ScanText,
   RotateCcw,
   Sparkles,
   Upload,
   WandSparkles,
   X,
+  Search,
+  Table2,
 } from "lucide-react";
 import type { FileAsset, FileIntakeError, PdfAsset } from "./domain/files/types";
 import type { OfficeAsset } from "./domain/office/types";
@@ -308,7 +313,6 @@ function App() {
           <nav className="site-nav" aria-label="Primary navigation">
             <a className="nav-link active" href="#workspace">Workspace</a>
             <a className="nav-link" href="#how-it-works">How it works</a>
-            <a className="nav-link" href="#roadmap">Roadmap</a>
           </nav>
           <div className="privacy-chip"><LockKeyhole size={14} /> Processed locally</div>
         </div>
@@ -320,8 +324,8 @@ function App() {
             <div>
               <p className="eyebrow"><span className="eyebrow-line" /> Verified document intelligence</p>
               <h1>One file.<br /><span>One clear goal.</span></h1>
-              <p className="hero-lede">SmartDocs turns a human request into a verified result. Start with an image, PDF, or supported Office collection, describe one explicit goal, and use measured browser-local tools. Source files stay local; only an explicit, bounded AI context can cross the optional gateway.</p>
-              <div className="hero-proof"><span><Check size={14} /> Source bytes stay local</span><span><Check size={14} /> Bounded inspection</span><span><Check size={14} /> Evidence-linked answers</span></div>
+              <p className="hero-lede">Upload a document, describe what you want, and get a verified result. SmartDocs chooses the right local workflow underneath—so you never have to choose an engine.</p>
+              <div className="hero-proof"><span><Check size={14} /> Files stay in your browser</span><span><Check size={14} /> Original preserved</span><span><Check size={14} /> Result verified before download</span></div>
             </div>
             <div className="hero-side-note"><span>01</span><p>Give the work a goal, not a tool name.</p><ArrowRight size={22} /></div>
           </div>
@@ -331,10 +335,10 @@ function App() {
           <div className="container">
             <div className="section-heading">
               <div>
-                <p className="eyebrow">The workspace</p>
-                <h2 id="workspace-title">What do you want to do<br /><span>with your file?</span></h2>
+                <p className="eyebrow">Start here</p>
+                <h2 id="workspace-title">Turn a document into<br /><span>a verified result.</span></h2>
               </div>
-              <p className="section-intro">Describe one exact goal for a file or a controlled collection. SmartDocs parses intent locally, evaluates compatible capabilities, and offers measured PDF/image tools, safe document actions, bounded Office inspection, and evidence-linked intelligence without silently uploading originals.</p>
+              <p className="section-intro">No tool names. No complicated setup. Tell SmartDocs the outcome you want and it will guide you through a reviewable, browser-local plan.</p>
             </div>
 
             <div className="workflow-layout">
@@ -375,21 +379,29 @@ function App() {
               </div>
             </div>
 
-            <ProjectsWorkspace asset={asset} currentFile={currentFileRef.current} />
-            <WorkflowWorkspace asset={asset} documents={[]} onGoalChange={handleGoalChange} onExecute={executeOrchestratedWorkflow} />
-            <ExtractionWorkspace asset={asset} onNavigateToPage={navigateToPdfPage} />
-            <AutomationWorkspace asset={asset} onExecute={executeOrchestratedWorkflow} />
             {asset ? <UnifiedWorkspace asset={asset} goal={goal} state={unifiedState} plan={unifiedPlan} busy={isBusy} onGoalChange={handleGoalChange} onReview={reviewUnifiedPlan} onConfirm={() => void confirmUnifiedPlan()} onCancel={cancelUnifiedPlan} onResetPlan={() => { setUnifiedPlan(null); setUnifiedState("idle"); }} /> : null}
-            <CollectionWorkspace onContinuePdf={continueWithPdfResult} />
-            {asset?.category === "pdf" && pdfFileRef.current ? <PdfPageWorkspace file={pdfFileRef.current} asset={asset} requestedPageNumber={pdfNavigationRequest?.pageNumber} navigationRequestToken={pdfNavigationRequest?.token} /> : null}
-            {asset?.category === "office" ? <OfficeWorkspace asset={asset} /> : null}
-            <PdfCoreTools currentFile={pdfFileRef.current} currentAsset={asset?.category === "pdf" ? asset : null} currentInputFile={currentFileRef.current} currentInputAsset={asset} onContinueResult={continueWithPdfResult} onNavigateToPage={navigateToPdfPage} onClearParentNotice={() => setNotice(null)} />
             {originalPdf ? <div className="pdf-recovery-bar" role="status"><span><strong>Original PDF remains recoverable.</strong> Continue editing the current result or return to the untouched source.</span><button type="button" className="secondary-button" onClick={returnToOriginalPdf}><RotateCcw size={15} /> Return to original PDF</button></div> : null}
 
             {notice ? <div className="notice" role="alert"><div className="notice-icon"><X size={17} /></div><div><strong>{notice.title}</strong><p>{notice.message}</p><span>{notice.recovery}</span></div></div> : null}
             {stage ? <div className="processing-strip" role="status" aria-live="polite"><span className="spinner" /><div><strong>{stageLabels[stage]}</strong><span>Working locally in your browser. No progress percentage is invented.</span></div><ChevronDown size={18} /></div> : null}
 
             {outcome && asset?.category === "image" ? <ResultPanel asset={asset} outcome={outcome} onReset={reset} onReprocess={reprocessWithResize} keepOriginalDimensions={keepOriginalDimensions} /> : null}
+
+            <section className="feature-section" aria-labelledby="features-title">
+              <div className="feature-heading"><div><p className="eyebrow">More than a converter</p><h2 id="features-title">Everything your documents<br /><span>need to get done.</span></h2></div><p>Powerful capabilities stay one click away, without taking over your workspace.</p></div>
+              <div className="feature-grid">
+                <article className="feature-card feature-card-wide"><span className="feature-icon"><FileImage size={19} /></span><div><h3>PDF intelligence</h3><p>Inspect, split, merge, optimize, search, and transform PDFs with validated output.</p></div><span className="feature-arrow">↗</span></article>
+                <article className="feature-card"><span className="feature-icon mint"><ScanText size={19} /></span><h3>Smart OCR</h3><p>Extract text from scans and create searchable PDFs locally.</p></article>
+                <article className="feature-card"><span className="feature-icon peach"><Table2 size={19} /></span><h3>Structured extraction</h3><p>Turn invoices, forms, and receipts into usable data.</p></article>
+                <article className="feature-card"><span className="feature-icon lilac"><WandSparkles size={19} /></span><h3>Document analysis</h3><p>Search, understand, and work with document content.</p></article>
+                <article className="feature-card"><span className="feature-icon blue"><Files size={19} /></span><h3>Office intelligence</h3><p>Inspect DOCX, PPTX, and XLSX files safely in your browser.</p></article>
+                <article className="feature-card"><span className="feature-icon rose"><Search size={19} /></span><h3>Multi-document work</h3><p>Compare, merge, search, and process document collections.</p></article>
+              </div>
+            </section>
+
+            <section className="project-promo" aria-label="Local projects"><div className="project-promo-icon"><FolderOpen size={23} /></div><div><p className="eyebrow">Work continues with you</p><h3>Save a project. Pick it up later.</h3><p>Keep documents and workflow history in a local project on this device.</p></div><button className="secondary-button" type="button" onClick={() => { const tools = document.getElementById("advanced-tools") as HTMLDetailsElement | null; if (tools) { tools.open = true; tools.scrollIntoView({ behavior: "smooth", block: "start" }); } }}>Open projects <ArrowRight size={15} /></button></section>
+
+            <details id="advanced-tools" className="advanced-tools"><summary><span><HardDrive size={17} /> Advanced document tools</span><small>PDF actions, OCR, collections, Office inspection, projects, and workflow controls</small><ChevronDown size={18} /></summary><div className="advanced-tools-intro">The simple flow is the recommended starting point. Open this area when you need a specialized control or want to inspect the underlying workflow.</div><ProjectsWorkspace asset={asset} currentFile={currentFileRef.current} /><WorkflowWorkspace asset={asset} documents={[]} onGoalChange={handleGoalChange} onExecute={executeOrchestratedWorkflow} /><ExtractionWorkspace asset={asset} onNavigateToPage={navigateToPdfPage} /><AutomationWorkspace asset={asset} onExecute={executeOrchestratedWorkflow} /><CollectionWorkspace onContinuePdf={continueWithPdfResult} />{asset?.category === "pdf" && pdfFileRef.current ? <PdfPageWorkspace file={pdfFileRef.current} asset={asset} requestedPageNumber={pdfNavigationRequest?.pageNumber} navigationRequestToken={pdfNavigationRequest?.token} /> : null}{asset?.category === "office" ? <OfficeWorkspace asset={asset} /> : null}<PdfCoreTools currentFile={pdfFileRef.current} currentAsset={asset?.category === "pdf" ? asset : null} currentInputFile={currentFileRef.current} currentInputAsset={asset} onContinueResult={continueWithPdfResult} onNavigateToPage={navigateToPdfPage} onClearParentNotice={() => setNotice(null)} /></details>
           </div>
         </section>
 
@@ -404,12 +416,9 @@ function App() {
           </div>
         </section>
 
-        <section id="roadmap" className="roadmap-section" aria-labelledby="roadmap-title">
-          <div className="container roadmap-grid"><div><p className="eyebrow">A measured roadmap</p><h2 id="roadmap-title">Build the foundation<br /><span>before the universe.</span></h2></div>      <div className="roadmap-list"><div className="roadmap-item"><span className="roadmap-marker" /><div><strong>Smart image optimizer</strong><p>Compression, resize recovery, and verified local results.</p></div><span className="roadmap-state">Done</span></div><div className="roadmap-item"><span className="roadmap-marker" /><div><strong>PDF core platform</strong><p>Local page operations, merge, split, conversion, blank-page review, and validated results.</p></div><span className="roadmap-state">Done</span></div><div className="roadmap-item"><span className="roadmap-marker" /><div><strong>Smart PDF optimization</strong><p>Target-size compression for scanned/image-heavy PDFs with quality modes, validation, progress, and recovery.</p></div><span className="roadmap-state">Done</span></div><div className="roadmap-item"><span className="roadmap-marker" /><div><strong>Browser-local OCR + document understanding</strong><p>Bundled English OCR, searchable-PDF authoring, local text search, deterministic structure signals, and preservation validation.</p></div><span className="roadmap-state">Done</span></div><div className="roadmap-item"><span className="roadmap-marker" /><div><strong>Evidence-backed AI document intelligence</strong><p>Bounded local context, deterministic retrieval, classification, summaries, extraction, Q&amp;A, structure views, explicit consent, and validated source-page navigation.</p></div><span className="roadmap-state">Done</span></div><div className="roadmap-item"><span className="roadmap-marker" /><div><strong>Safe document actions</strong><p>Reviewed action plans, local text-match redaction, annotations, crop and resize, metadata controls, validation, cancellation, recovery, and bounded undo/redo.</p></div><span className="roadmap-state">Done</span></div><div className="roadmap-item"><span className="roadmap-marker" /><div><strong>Universal conversion engine</strong><p>Intent-first PDF/image conversion, ordered collections, page selection, quality and resolution controls, validated outputs, target-size measurement, previews, progress, cancellation, and chaining.</p></div><span className="roadmap-state">Done</span></div><div className="roadmap-item"><span className="roadmap-marker" /><div><strong>Office document intelligence</strong><p>Browser-local DOCX/PPTX/XLSX intake, bounded OOXML inspection, Word structure, slide summaries, sheet/cell previews, TXT export, warnings, and honest conversion boundaries.</p></div><span className="roadmap-state">Done</span></div><div className="roadmap-item current"><span className="roadmap-marker" /><div><strong>Persistent local projects</strong><p>Explicit-save IndexedDB projects, immutable originals, versions, workflow metadata, metadata-only import/export, recovery, and safe deletion.</p></div><span className="roadmap-state">Done</span></div><div className="roadmap-item"><span className="roadmap-marker" /><div><strong>Production hardening + v1.0.0 release</strong><p>Reproducible dependencies, real linting, CI, security and performance audits, release metadata, browser verification, and documented local-first limits.</p></div><span className="roadmap-state">Done</span></div><div className="roadmap-item"><span className="roadmap-marker" /><div><strong>Intentional product boundary</strong><p>Cloud backup, accounts, billing, public sharing, universal Office round-trips, autonomous actions, arbitrary code execution, and hosted queues remain outside the local-first v1 scope.</p></div><span className="roadmap-state">Boundary</span></div></div></div>
-        </section>
       </main>
 
-      <footer className="site-footer"><div className="container footer-inner"><a className="brand footer-brand" href="#top" aria-label="Back to SmartDocs home"><span className="brand-mark" aria-hidden="true"><span /><span /><span /></span><span className="brand-name">SmartDocs</span></a><p>One file + one goal → one verified result.</p><span className="footer-phase">v1.0.0 · Phase 16 final hardening</span></div></footer>
+      <footer className="site-footer"><div className="container footer-inner"><a className="brand footer-brand" href="#top" aria-label="Back to SmartDocs home"><span className="brand-mark" aria-hidden="true"><span /><span /><span /></span><span className="brand-name">SmartDocs</span></a><p>One file + one goal → one verified result.</p><span className="footer-phase">Local-first · verified by design</span></div></footer>
     </div>
   );
 }
