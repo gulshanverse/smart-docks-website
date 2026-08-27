@@ -11,7 +11,6 @@ import {
   LockKeyhole,
   ScanText,
   RotateCcw,
-  Sparkles,
   Upload,
   WandSparkles,
   X,
@@ -22,7 +21,7 @@ import type { FileAsset, FileIntakeError, PdfAsset } from "./domain/files/types"
 import type { OfficeAsset } from "./domain/office/types";
 import type { PdfInspectionValidation } from "./domain/pdfs/types";
 import { formatBytes } from "./lib/file-utils";
-import { parseImageIntent, parsePdfIntent, type ParsedIntent } from "./domain/intents/parse-intent";
+import { parseImageIntent, parsePdfIntent } from "./domain/intents/parse-intent";
 import { createImageCompressionWorkflow, createPdfInspectionWorkflow } from "./domain/workflows/types";
 import { validatePdfInspection } from "./domain/pdfs/validation";
 import { compressImage, type CompressionOutcome, type CompressionStage } from "./features/compression/compress-image";
@@ -62,8 +61,6 @@ const stageLabels: Record<WorkflowStage, string> = {
   rendering: "Rendering preview",
 };
 
-const examples = ["make this image under 100KB", "compress to 500KB", "make it less than 1 MB"];
-
 function intakeErrorToNotice(error: FileIntakeError): Notice {
   return { title: error.title, message: error.message, recovery: error.recovery };
 }
@@ -79,7 +76,6 @@ function App() {
   const [asset, setAsset] = useState<FileAsset | null>(null);
   const [pdfValidation, setPdfValidation] = useState<PdfInspectionValidation | null>(null);
   const [goal, setGoal] = useState("");
-  const [intent, setIntent] = useState<ParsedIntent | null>(null);
   const [outcome, setOutcome] = useState<CompressionOutcome | null>(null);
   const [notice, setNotice] = useState<Notice | null>(null);
   const [readingFile, setReadingFile] = useState(false);
@@ -117,7 +113,6 @@ function App() {
     setAsset(null);
     setPdfValidation(null);
     setOutcome(null);
-    setIntent(null);
     setKeepOriginalDimensions(false);
     setNotice(null);
     setUnifiedPlan(null);
@@ -159,7 +154,6 @@ function App() {
 
   function handleGoalChange(value: string) {
     setGoal(value);
-    setIntent(null);
     setUnifiedPlan(null);
     setUnifiedState("idle");
     if (notice?.title === "We need a clearer goal.") setNotice(null);
@@ -188,7 +182,6 @@ function App() {
       return true;
     }
     const parsed = parseImageIntent(goal);
-    setIntent(parsed);
     if (parsed.status !== "valid" || !parsed.intent) {
       setNotice({
         title: parsed.status === "unsupported" ? "That goal is not available yet." : "We need a clearer goal.",
@@ -289,7 +282,6 @@ function App() {
     setAsset(null);
     setPdfValidation(null);
     setGoal("");
-    setIntent(null);
     setOutcome(null);
     setNotice(null);
     setUnifiedPlan(null);
@@ -319,26 +311,12 @@ function App() {
       </header>
 
       <main id="top">
-        <section className="hero-section">
-          <div className="container hero-grid">
-            <div>
-              <p className="eyebrow"><span className="eyebrow-line" /> Verified document intelligence</p>
-              <h1>One file.<br /><span>One clear goal.</span></h1>
-              <p className="hero-lede">Upload a document, describe what you want, and get a verified result. SmartDocs chooses the right local workflow underneath—so you never have to choose an engine.</p>
-              <div className="hero-proof"><span><Check size={14} /> Files stay in your browser</span><span><Check size={14} /> Original preserved</span><span><Check size={14} /> Result verified before download</span></div>
-            </div>
-            <div className="hero-side-note"><span>01</span><p>Give the work a goal, not a tool name.</p><ArrowRight size={22} /></div>
-          </div>
-        </section>
-
         <section id="workspace" className="workspace-section" aria-labelledby="workspace-title">
           <div className="container">
-            <div className="section-heading">
-              <div>
-                <p className="eyebrow">Start here</p>
-                <h2 id="workspace-title">Turn a document into<br /><span>a verified result.</span></h2>
-              </div>
-              <p className="section-intro">No tool names. No complicated setup. Tell SmartDocs the outcome you want and it will guide you through a reviewable, browser-local plan.</p>
+            <div className="workspace-intro">
+              <p className="eyebrow"><span className="eyebrow-line" /> Verified document intelligence</p>
+              <h1 id="workspace-title">Your document.<br /><span>One clear goal.</span></h1>
+              <p>Upload a file and tell SmartDocs what you want done. You will see a clear plan before anything changes.</p>
             </div>
 
             <div className="workflow-layout">
@@ -364,20 +342,8 @@ function App() {
                 )}
               </div>
 
-              <div className="workflow-card goal-card legacy-goal-card">
-                <div className="card-label"><span className="label-icon violet"><WandSparkles size={15} /></span> 02 · Describe the goal</div>
-                <label htmlFor="goal-input" className="goal-label">What should happen to this file?</label>
-                <textarea id="goal-input" value={goal} onChange={(event) => handleGoalChange(event.target.value)} placeholder={asset?.category === "pdf" ? "e.g. compress this PDF under 2MB" : asset?.category === "office" ? "e.g. extract all text from this Word file" : "e.g. make this image under 100KB"} rows={3} data-testid="goal-input" />
-                {asset?.category === "pdf" ? <div className="pdf-goal-note" role="status"><strong>PDF page operations are available.</strong><span>Use an exact target such as “compress this PDF under 2MB,” or choose a quality mode in Optimize PDF below. Text/vector content is preserved by default.</span></div> : asset?.category === "office" ? <div className="pdf-goal-note office-goal-note" role="status"><strong>Office intelligence is ready.</strong><span>SmartDocs can inspect bounded structure and extract text locally. Office-to-PDF conversion is explicitly unavailable until a faithful browser renderer is independently verified.</span></div> : <>
-                  <div className="example-row" aria-label="Goal examples">
-                    {examples.map((example) => <button key={example} type="button" onClick={() => handleGoalChange(example)}>{example}</button>)}
-                  </div>
-                  {intent?.status === "valid" && intent.intent ? <div className="intent-confirmation"><Check size={15} /> Target understood: ≤ {intent.intent.targetLabel}</div> : null}
-                  <button className="primary-button" type="button" onClick={() => void runWorkflow()} disabled={isBusy} data-testid="run-workflow">{stage ? <><span className="spinner" /> {stageLabels[stage]}…</> : <><Sparkles size={17} /> Optimize locally <ArrowRight size={17} /></>}</button>
-                </>}
-                <p className="microcopy"><LockKeyhole size={13} /> {asset?.category === "pdf" ? "PDF inspection is processed locally in your browser." : asset?.category === "office" ? "Office package inspection is processed locally in your browser." : "Your image never leaves this browser."}</p>
-              </div>
             </div>
+            <div className="workspace-proof" aria-label="SmartDocs processing guarantees"><span><Check size={14} /> Files stay in your browser</span><span><Check size={14} /> Original preserved</span><span><Check size={14} /> Result verified before download</span></div>
 
             {asset ? <UnifiedWorkspace asset={asset} goal={goal} state={unifiedState} plan={unifiedPlan} busy={isBusy} onGoalChange={handleGoalChange} onReview={reviewUnifiedPlan} onConfirm={() => void confirmUnifiedPlan()} onCancel={cancelUnifiedPlan} onResetPlan={() => { setUnifiedPlan(null); setUnifiedState("idle"); }} /> : null}
             {originalPdf ? <div className="pdf-recovery-bar" role="status"><span><strong>Original PDF remains recoverable.</strong> Continue editing the current result or return to the untouched source.</span><button type="button" className="secondary-button" onClick={returnToOriginalPdf}><RotateCcw size={15} /> Return to original PDF</button></div> : null}
