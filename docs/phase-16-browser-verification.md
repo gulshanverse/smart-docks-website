@@ -19,3 +19,7 @@ The actual Vite production preview loaded at `http://localhost:4179/` with title
 ## Actual production-preview network audit
 
 Performance entries during ordinary production-shell load were limited to same-origin JavaScript, CSS, the PDF worker, and favicon assets on `localhost:4179`; no `/api/ai`, analytics, telemetry, upload, or external provider request appeared. The console contained no runtime error output during this smoke load. This verifies the idle shell only; document intake, OCR, and explicitly consented AI requests require separate action and were not inferred from the idle-load result.
+
+## Final v1.0.0 production-preview check
+
+The rebuilt production preview loaded at `http://localhost:4180/` with title `SmartDocs — Intelligent Document Workspace`. The meta description was present and described SmartDocs as a local-first intelligent document workspace. At the available desktop viewport, `window.innerWidth` was 1280 and `document.documentElement.scrollWidth` was 1265, so no horizontal overflow was observed. Idle resource entries were same-origin JavaScript, CSS, PDF worker, and favicon assets only; no external, analytics, upload, or AI endpoint appeared during idle startup.
