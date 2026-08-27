@@ -235,6 +235,15 @@ function App() {
     setUnifiedState("review");
   }
 
+  function generateFromEmptyState() {
+    if (!asset) {
+      setNotice({ title: "Add a file first.", message: "SmartDocs needs a document before it can create a real plan.", recovery: "Choose a file above, then Generate will review the request." });
+      inputRef.current?.focus();
+      return;
+    }
+    reviewUnifiedPlan();
+  }
+
   async function confirmUnifiedPlan() {
     if (!unifiedPlan) return;
     setUnifiedState("running");
@@ -355,6 +364,12 @@ function App() {
               </div>
 
             </div>
+            {!asset ? <section className="empty-goal-panel" aria-labelledby="empty-goal-title">
+              <div className="empty-goal-heading"><div><p className="eyebrow"><span className="eyebrow-line" /> Next, tell us what you need</p><h2 id="empty-goal-title">What do you want to do?</h2></div><span className="empty-goal-step">02 · Describe</span></div>
+              <div className="empty-goal-input-wrap"><WandSparkles size={18} aria-hidden="true" /><textarea id="empty-goal-input" value={goal} onChange={(event) => handleGoalChange(event.target.value)} placeholder="e.g. Compress this PDF under 1 MB" rows={2} aria-describedby="empty-goal-help" /><button className="primary-button empty-generate" type="button" onClick={generateFromEmptyState} disabled={!goal.trim()}><WandSparkles size={16} /> Generate</button></div>
+              <p id="empty-goal-help" className="empty-goal-help">Describe the outcome in your own words. SmartDocs will choose the supported path after you add a file.</p>
+              <div className="empty-suggestion-row" aria-label="Suggested actions"><span>Try</span>{["Compress", "Convert", "OCR", "Extract", "Merge"].map((suggestion) => <button type="button" key={suggestion} onClick={() => handleGoalChange(suggestion === "Compress" ? "Compress this document under 1 MB" : suggestion === "Convert" ? "Convert this document" : suggestion === "OCR" ? "Make this document searchable" : suggestion === "Extract" ? "Extract the text from this document" : "Merge these documents into one PDF")}>{suggestion}</button>)}</div>
+            </section> : null}
             <div className="workspace-proof" aria-label="SmartDocs processing guarantees"><span><Check size={14} /> Files stay in your browser</span><span><Check size={14} /> Original preserved</span><span><Check size={14} /> Result verified before download</span></div>
 
             {asset ? <UnifiedWorkspace asset={asset} goal={goal} state={unifiedState} plan={unifiedPlan} busy={isBusy} onGoalChange={handleGoalChange} onReview={reviewUnifiedPlan} onConfirm={() => void confirmUnifiedPlan()} onCancel={cancelUnifiedPlan} onResetPlan={() => { setUnifiedPlan(null); setUnifiedState("idle"); }} /> : null}
