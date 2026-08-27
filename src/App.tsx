@@ -31,6 +31,7 @@ import { PdfPageWorkspace } from "./features/pdf/PdfPageWorkspace";
 import { PdfCoreTools } from "./features/pdf/PdfCoreTools";
 import { OfficeWorkspace } from "./features/office/OfficeWorkspace";
 import { UnifiedWorkspace } from "./features/unified/UnifiedWorkspace";
+import { ToolBrowser } from "./features/tools/ToolBrowser";
 import { planUnifiedWorkflow } from "./domain/unified/planner";
 import type { UnifiedWorkflowPlan, UnifiedWorkflowState } from "./domain/unified/types";
 import { CollectionWorkspace } from "./features/collections/CollectionWorkspace";
@@ -352,6 +353,8 @@ function App() {
             {stage ? <div className="processing-strip" role="status" aria-live="polite"><span className="spinner" /><div><strong>{stageLabels[stage]}</strong><span>Working locally in your browser. No progress percentage is invented.</span></div><ChevronDown size={18} /></div> : null}
 
             {outcome && asset?.category === "image" ? <ResultPanel asset={asset} outcome={outcome} onReset={reset} onReprocess={reprocessWithResize} keepOriginalDimensions={keepOriginalDimensions} /> : null}
+
+            <ToolBrowser onSelectGoal={handleGoalChange} />
 
             <section className="feature-section" aria-labelledby="features-title">
               <div className="feature-heading"><div><p className="eyebrow">More than a converter</p><h2 id="features-title">Everything your documents<br /><span>need to get done.</span></h2></div><p>Powerful capabilities stay one click away, without taking over your workspace.</p></div>

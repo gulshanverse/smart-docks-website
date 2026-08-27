@@ -73,11 +73,11 @@ export function WorkflowWorkspace({ asset, documents, onGoalChange, onExecute }:
     <section className="workflow-workspace" aria-labelledby="workflow-workspace-title">
       <div className="collection-heading">
         <div>
-          <p className="eyebrow"><span className="eyebrow-line" /> Phase 12 · Orchestration</p>
+          <p className="eyebrow"><span className="eyebrow-line" /> Smart workflow</p>
           <h3 id="workflow-workspace-title">Automate your document goal.</h3>
           <p>Describe a multi-step request. SmartDocs plans the sequence, validates dependencies, and executes locally.</p>
         </div>
-        <span className="local-badge"><Activity size={13} /> Orchestration Engine</span>
+        <span className="local-badge"><Activity size={13} /> Task plan</span>
       </div>
 
       <div className="workflow-layout">

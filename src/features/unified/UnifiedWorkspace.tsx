@@ -36,12 +36,14 @@ const suggestionCatalog: Array<{ capability: string; label: string; prompt: stri
 
 function humanStepLabel(capability: string): string {
   if (capability.includes("inspect")) return "Inspect the document";
+  if (capability.includes("target-size")) return "Reach the requested file size";
   if (capability.includes("optimize") || capability.includes("compress")) return "Optimize the document";
   if (capability.includes("ocr")) return "Make the document searchable";
   if (capability.includes("search")) return "Search the document";
   if (capability.includes("extract")) return "Extract the requested information";
   if (capability.includes("convert")) return "Convert the document";
   if (capability.includes("organize") || capability.includes("merge") || capability.includes("split")) return "Organize the document";
+  if (capability.includes("image.validate")) return "Verify the image result";
   if (capability.includes("validate")) return "Verify the result";
   if (capability.includes("ai")) return "Review the document with optional AI assistance";
   return "Process the document";
