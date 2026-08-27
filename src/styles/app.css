@@ -1479,3 +1479,38 @@ textarea:focus { border-color: var(--sd-indigo); box-shadow: 0 0 0 4px rgba(70,8
 /* Let the primary empty-state workspace own the full content width. */
 .workspace-section .workflow-layout { display: block; width: 100%; max-width: 1000px; }
 .workspace-section .intake-card { width: 100%; }
+
+/* Dark-mode upload surface contrast refinement */
+:root {
+  --sd-dark-bg: #071a29;
+  --sd-dark-panel: #0d2639;
+  --sd-dark-panel-raised: #12334b;
+  --sd-dark-border: rgba(76, 167, 198, .56);
+  --sd-dark-border-soft: rgba(76, 167, 198, .28);
+  --sd-dark-text: #e3f1f7;
+  --sd-dark-text-soft: #b4cbd7;
+  --sd-dark-text-muted: #89a6b7;
+  --sd-dark-text-faint: #6d8b9d;
+  --sd-dark-cyan: #35e0ed;
+}
+.workspace-section { background: var(--sd-dark-bg); color: var(--sd-dark-text); }
+.workspace-intro h1 { color: var(--sd-dark-text); text-shadow: 0 1px 24px rgba(53, 224, 237, .05); }
+.workspace-intro > p:last-child { color: var(--sd-dark-text-muted); }
+.intake-card { border-color: var(--sd-dark-border); background: linear-gradient(145deg, rgba(15, 47, 70, .96), rgba(8, 28, 45, .98)); box-shadow: 0 28px 70px rgba(0, 0, 0, .24), inset 0 1px 0 rgba(181, 237, 247, .08); }
+.intake-card .card-label { color: var(--sd-dark-text-soft); }
+.intake-card .label-icon { color: var(--sd-dark-cyan); background: rgba(53, 224, 237, .13); }
+.dropzone { border-color: var(--sd-dark-border); background: linear-gradient(145deg, rgba(24, 67, 94, .96), rgba(14, 48, 73, .96)); color: var(--sd-dark-text-soft); box-shadow: inset 0 1px 0 rgba(184, 239, 247, .05); }
+.dropzone:hover, .dropzone:focus-visible { border-color: var(--sd-dark-cyan); background: linear-gradient(145deg, rgba(29, 79, 107, .98), rgba(16, 57, 82, .98)); box-shadow: 0 0 0 3px rgba(53, 224, 237, .1), inset 0 1px 0 rgba(184, 239, 247, .1); }
+.dropzone-icon { border-color: rgba(53, 224, 237, .7); color: var(--sd-dark-cyan); background: rgba(4, 27, 43, .38); }
+.dropzone strong { color: var(--sd-dark-text); }
+.dropzone > span:not(.dropzone-icon):not(.dropzone-choose):not(.dropzone-types) { color: var(--sd-dark-text-soft); }
+.dropzone small { color: var(--sd-dark-text-muted); }
+.dropzone-choose { color: #06222c; background: var(--sd-dark-cyan); box-shadow: 0 8px 24px rgba(53, 224, 237, .22); }
+.dropzone-choose:hover { background: #82f3f7; }
+.dropzone-types b { border-color: var(--sd-dark-border-soft); color: var(--sd-dark-text-soft); background: rgba(4, 25, 40, .58); }
+.starter-tasks > p { color: var(--sd-dark-text-soft); }
+.starter-task-grid button { border-color: var(--sd-dark-border-soft); color: var(--sd-dark-text-soft); background: rgba(8, 34, 53, .82); }
+.starter-task-grid button:hover, .starter-task-grid button:focus-visible { border-color: var(--sd-dark-cyan); color: var(--sd-dark-text); background: linear-gradient(135deg, rgba(24, 92, 119, .96), rgba(13, 53, 78, .96)); }
+.workspace-proof { color: var(--sd-dark-text-muted); }
+.workspace-proof svg { color: var(--sd-dark-cyan); }
+button:focus-visible, a:focus-visible, textarea:focus-visible, [role="button"]:focus-visible { outline-color: rgba(53, 224, 237, .78); }
