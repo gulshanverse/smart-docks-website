@@ -314,7 +314,8 @@ function App() {
           </a>
           <nav className="site-nav" aria-label="Primary navigation">
             <a className="nav-link active" href="#workspace">Workspace</a>
-            <a className="nav-link" href="#projects">History</a>
+            <a className="nav-link" href="#tools">Tools</a>
+            <a className="nav-link" href="#projects">Projects</a>
             <a className="nav-link" href="#how-it-works">How it works</a>
           </nav>
           <div className="privacy-chip"><LockKeyhole size={14} /> Processed locally</div>
@@ -326,8 +327,8 @@ function App() {
           <div className="container">
             <div className="workspace-intro">
               <p className="eyebrow"><span className="eyebrow-line" /> Precise document automation</p>
-              <h1 id="workspace-title">What do you want to get done?</h1>
-              <p>Drop a document. Tell SmartDocs your goal. Get a verified result — no learning curve.</p>
+              <h1 id="workspace-title">One file.<br />One clear goal.</h1>
+              <p>Upload a document, tell SmartDocs what you need, and get a verified result.</p>
             </div>
 
             <div className="workflow-layout">
@@ -394,7 +395,7 @@ function App() {
               </div>
             </section>
 
-            <section className="project-promo" aria-label="Local projects"><div className="project-promo-icon"><FolderOpen size={23} /></div><div><p className="eyebrow">Work continues with you</p><h3>Save a project. Pick it up later.</h3><p>Keep documents and workflow history in a local project on this device.</p></div><button className="secondary-button" type="button" onClick={() => { const tools = document.getElementById("advanced-tools") as HTMLDetailsElement | null; if (tools) { tools.open = true; tools.scrollIntoView({ behavior: "smooth", block: "start" }); } }}>Open projects <ArrowRight size={15} /></button></section>
+            <section id="projects" className="project-promo" aria-label="Local projects"><div className="project-promo-icon"><FolderOpen size={23} /></div><div><p className="eyebrow">Work continues with you</p><h3>Save a project. Pick it up later.</h3><p>Keep documents and workflow history in a local project on this device.</p></div><button className="secondary-button" type="button" onClick={() => { const tools = document.getElementById("advanced-tools") as HTMLDetailsElement | null; if (tools) { tools.open = true; tools.scrollIntoView({ behavior: "smooth", block: "start" }); } }}>Open projects <ArrowRight size={15} /></button></section>
 
             <details id="advanced-tools" className="advanced-tools"><summary><span><HardDrive size={17} /> Advanced document tools</span><small>PDF actions, OCR, collections, Office inspection, projects, and workflow controls</small><ChevronDown size={18} /></summary><div className="advanced-tools-intro">The simple flow is the recommended starting point. Open this area when you need a specialized control or want to inspect the underlying workflow.</div><ProjectsWorkspace asset={asset} currentFile={currentFileRef.current} /><WorkflowWorkspace asset={asset} documents={[]} onGoalChange={handleGoalChange} onExecute={executeOrchestratedWorkflow} /><ExtractionWorkspace asset={asset} onNavigateToPage={navigateToPdfPage} /><AutomationWorkspace asset={asset} onExecute={executeOrchestratedWorkflow} /><CollectionWorkspace onContinuePdf={continueWithPdfResult} />{asset?.category === "pdf" && pdfFileRef.current ? <PdfPageWorkspace file={pdfFileRef.current} asset={asset} requestedPageNumber={pdfNavigationRequest?.pageNumber} navigationRequestToken={pdfNavigationRequest?.token} /> : null}{asset?.category === "office" ? <OfficeWorkspace asset={asset} /> : null}<PdfCoreTools currentFile={pdfFileRef.current} currentAsset={asset?.category === "pdf" ? asset : null} currentInputFile={currentFileRef.current} currentInputAsset={asset} onContinueResult={continueWithPdfResult} onNavigateToPage={navigateToPdfPage} onClearParentNotice={() => setNotice(null)} /></details>
           </div>
