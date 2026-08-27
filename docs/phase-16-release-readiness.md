@@ -37,3 +37,9 @@ The previously reported run `33049584933` failed during the initial setup-node s
 Run `33050403430` completed successfully. The actual job reached and passed Setup pnpm, Setup Node, Install dependencies, Typecheck, Lint, Test, and Production build. Local verification also passed `pnpm install --frozen-lockfile`, `pnpm typecheck`, `pnpm lint`, `pnpm test`, `pnpm build`, `pnpm audit --prod --audit-level high`, and `git diff --check`. ESLint completed with zero blocking errors and 59 visible legacy warnings.
 
 The production-preview browser smoke test verified the built shell, title, local-first disclosure, no horizontal overflow at the captured desktop viewport, same-origin static asset loading, and no idle-load console errors. It did not constitute universal browser certification or replace targeted intake/OCR/device-matrix testing.
+
+## Final v1.0.0 CI evidence
+
+After the package was finalized at version `1.0.0`, commit `a5b10da` triggered GitHub Actions run `33067077877`. The run completed successfully. Setup pnpm, Setup Node, frozen dependency installation, Typecheck, Lint, Test, and Production build all executed and passed, including post-job cleanup. This is the latest successful CI run for `main` and is the basis for the final release decision.
+
+The final local gate run also passed all required commands independently: `pnpm install --frozen-lockfile`, `pnpm typecheck`, `pnpm lint`, `pnpm test`, `pnpm build`, `pnpm audit --prod --audit-level high`, and `git diff --check`. The application remains local-first and browser-bound; this evidence does not claim universal browser/device certification.
